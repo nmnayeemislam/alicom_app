@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../core/api_exception.dart';
 import '../state/auth_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/auth_header.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
 enum _LoginMode { password, otp }
 
+/// Dark hero header + rounded sheet layout. The sheet holds a Login/Register
+/// tab pill (Register pushes [RegisterScreen]) and the sign-in form; phone
+/// OTP stays reachable through a text link below the submit button.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -27,6 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isSubmitting = false;
   String? _error;
   bool _obscurePassword = true;
+  bool _rememberMe = true;
 
   @override
   void dispose() {
@@ -115,51 +122,128 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Sign In')),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Welcome back', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 6),
-              Text(
-                'Sign in to continue shopping.',
-                style: TextStyle(color: AppColors.muted),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+      backgroundColor: AppColors.primary,
+      body: Column(
+        children: [
+          _buildHero(context),
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
               ),
-              const SizedBox(height: 20),
-              _buildModeSwitch(),
-              const SizedBox(height: 20),
-              if (_mode == _LoginMode.password) _buildPasswordForm() else _buildOtpForm(),
-            ],
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildTabPill(context),
+                    const SizedBox(height: 24),
+                    if (_mode == _LoginMode.password) _buildPasswordForm() else _buildOtpForm(),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ),
+        ],
+      ),
       ),
     );
   }
 
-  Widget _buildModeSwitch() {
-    Widget segment(String label, _LoginMode mode) {
-      final active = _mode == mode;
+  // --- DARK HERO -------------------------------------------------------
+  Widget _buildHero(BuildContext context) {
+    return SafeArea(
+      bottom: false,
+      child: Stack(
+        children: [
+          // Soft decorative circles, echoing the mock's background shapes.
+          Positioned(
+            top: -60,
+            right: -40,
+            child: Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.04),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 40,
+            right: 60,
+            child: Container(
+              width: 90,
+              height: 90,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.05),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 26),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const HeroBackButton(),
+                const SizedBox(height: 24),
+                Text(
+                  'Go ahead and set up\nyour account',
+                  style: GoogleFonts.interTight(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    height: 1.2,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Sign in to enjoy the best shopping experience',
+                  style: GoogleFonts.inter(
+                    color: Colors.white.withValues(alpha: 0.75),
+                    fontSize: 14,
+                    height: 1.45,
+                    letterSpacing: 0.1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- LOGIN / REGISTER TABS -------------------------------------------
+  Widget _buildTabPill(BuildContext context) {
+    Widget tab(String label, {required bool active, required VoidCallback onTap}) {
       return Expanded(
         child: InkWell(
-          onTap: () => _switchMode(mode),
+          onTap: onTap,
           borderRadius: BorderRadius.circular(999),
           child: Container(
             alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(vertical: 10),
+            padding: const EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(
-              color: active ? AppColors.primary : Colors.transparent,
+              color: active ? AppColors.card : Colors.transparent,
               borderRadius: BorderRadius.circular(999),
+              boxShadow: active
+                  ? [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 3))]
+                  : null,
             ),
             child: Text(
               label,
               style: TextStyle(
-                color: active ? AppColors.onAccent : AppColors.body,
-                fontWeight: FontWeight.w600,
-                fontSize: 13.5,
+                color: active ? AppColors.inkStrong : AppColors.body,
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
               ),
             ),
           ),
@@ -168,20 +252,27 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     return Container(
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.line),
+        color: AppColors.line.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         children: [
-          segment('Password', _LoginMode.password),
-          segment('Phone OTP', _LoginMode.otp),
+          tab('Login', active: true, onTap: () {}),
+          tab(
+            'Register',
+            active: false,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const RegisterScreen()),
+            ),
+          ),
         ],
       ),
     );
   }
 
+  // --- PASSWORD FORM ---------------------------------------------------
   Widget _buildPasswordForm() {
     return Form(
       key: _formKey,
@@ -192,7 +283,10 @@ class _LoginScreenState extends State<LoginScreen> {
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
             autofillHints: const [AutofillHints.email],
-            decoration: const InputDecoration(labelText: 'Email'),
+            decoration: const InputDecoration(
+              labelText: 'E-mail ID',
+              prefixIcon: Icon(Icons.mail_outline, size: 20),
+            ),
             validator: (value) => (value == null || value.isEmpty) ? 'Enter your email' : null,
           ),
           const SizedBox(height: 14),
@@ -202,6 +296,7 @@ class _LoginScreenState extends State<LoginScreen> {
             autofillHints: const [AutofillHints.password],
             decoration: InputDecoration(
               labelText: 'Password',
+              prefixIcon: const Icon(Icons.lock_outline, size: 20),
               suffixIcon: IconButton(
                 icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, size: 20),
                 onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
@@ -209,20 +304,37 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             validator: (value) => (value == null || value.isEmpty) ? 'Enter your password' : null,
           ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              SizedBox(
+                width: 22,
+                height: 22,
+                child: Checkbox(
+                  value: _rememberMe,
+                  onChanged: (v) => setState(() => _rememberMe = v ?? true),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                ),
               ),
-              child: const Text('Forgot password?'),
-            ),
+              const SizedBox(width: 8),
+              Text('Remember me', style: TextStyle(fontSize: 13, color: AppColors.bodyStrong)),
+              const Spacer(),
+              InkWell(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+                ),
+                child: Text(
+                  'Forgot Password?',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary),
+                ),
+              ),
+            ],
           ),
           if (_error != null) ...[
             const SizedBox(height: 14),
-            Text(_error!, style: const TextStyle(color: Colors.red)),
+            AuthErrorBanner(message: _error!),
           ],
-          const SizedBox(height: 20),
+          const SizedBox(height: 22),
           ElevatedButton(
             onPressed: _isSubmitting ? null : _submitPassword,
             child: _isSubmitting
@@ -231,15 +343,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
-                : const Text('Sign In'),
+                : const Text('Login'),
           ),
           const SizedBox(height: 16),
           Center(
             child: TextButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const RegisterScreen()),
+              onPressed: () => _switchMode(_LoginMode.otp),
+              child: Text(
+                'Sign in with phone OTP instead',
+                style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 13.5),
               ),
-              child: const Text("Don't have an account? Create one"),
             ),
           ),
         ],
@@ -247,6 +360,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // --- OTP FORM --------------------------------------------------------
   Widget _buildOtpForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -255,14 +369,20 @@ class _LoginScreenState extends State<LoginScreen> {
           controller: _otpPhoneController,
           keyboardType: TextInputType.phone,
           enabled: !_otpSent,
-          decoration: const InputDecoration(labelText: 'Phone number'),
+          decoration: const InputDecoration(
+            labelText: 'Phone number',
+            prefixIcon: Icon(Icons.phone_outlined, size: 20),
+          ),
         ),
         if (_otpSent) ...[
           const SizedBox(height: 14),
           TextFormField(
             controller: _otpController,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Verification code'),
+            decoration: const InputDecoration(
+              labelText: 'Verification code',
+              prefixIcon: Icon(Icons.pin_outlined, size: 20),
+            ),
           ),
           Align(
             alignment: Alignment.centerRight,
@@ -274,9 +394,9 @@ class _LoginScreenState extends State<LoginScreen> {
         ],
         if (_error != null) ...[
           const SizedBox(height: 14),
-          Text(_error!, style: const TextStyle(color: Colors.red)),
+          AuthErrorBanner(message: _error!),
         ],
-        const SizedBox(height: 20),
+        const SizedBox(height: 22),
         ElevatedButton(
           onPressed: _isSubmitting ? null : (_otpSent ? _verifyOtp : _sendOtp),
           child: _isSubmitting
@@ -285,15 +405,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   height: 20,
                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                 )
-              : Text(_otpSent ? 'Verify & Sign In' : 'Send Code'),
+              : Text(_otpSent ? 'Verify & Login' : 'Send Code'),
         ),
         const SizedBox(height: 16),
         Center(
           child: TextButton(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const RegisterScreen()),
+            onPressed: () => _switchMode(_LoginMode.password),
+            child: Text(
+              'Use e-mail & password instead',
+              style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 13.5),
             ),
-            child: const Text("Don't have an account? Create one"),
           ),
         ),
       ],

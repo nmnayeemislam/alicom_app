@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../state/auth_state.dart';
 import '../theme/app_theme.dart';
 import 'main_shell.dart';
+import 'onboarding_screen.dart';
 
 /// First-frame screen while [AuthState.restore] resolves a stored session,
 /// so the app doesn't flash a logged-out UI before swapping to logged-in.
+/// Holds for a minimum duration so the splash animation is actually seen.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -15,6 +16,8 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  static const _minDisplay = Duration(milliseconds: 2500);
+
   @override
   void initState() {
     super.initState();
@@ -22,10 +25,17 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _bootstrap() async {
-    await AuthState.instance.restore();
+    final results = await Future.wait([
+      AuthState.instance.restore(),
+      OnboardingScreen.wasSeen(),
+      Future.delayed(_minDisplay),
+    ]);
     if (!mounted) return;
+    final seenOnboarding = results[1] == true;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const MainShell()),
+      MaterialPageRoute(
+        builder: (_) => seenOnboarding ? const MainShell() : const OnboardingScreen(),
+      ),
     );
   }
 
@@ -33,25 +43,11 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SvgPicture.asset(
-              'assets/images/alicom-mark.svg',
-              width: 96,
-              height: 96,
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.4,
-                color: AppColors.accent,
-              ),
-            ),
-          ],
+      body: SizedBox.expand(
+        child: Image.asset(
+          'assets/images/splash.gif',
+          fit: BoxFit.cover,
+          gaplessPlayback: true,
         ),
       ),
     );

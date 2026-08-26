@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../core/api_exception.dart';
 import '../services/auth_service.dart';
+import '../theme/app_theme.dart';
+import '../widgets/auth_header.dart';
 
 enum _Step { requestOtp, verifyOtp, resetPassword, done }
 
@@ -118,19 +120,30 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Reset Password')),
+      appBar: AppBar(),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              AuthHeader(
+                title: _step == _Step.done ? 'All Set!' : 'Reset Password',
+                subtitle: switch (_step) {
+                  _Step.requestOtp => 'Enter your email or phone to receive a reset code.',
+                  _Step.verifyOtp => 'Enter the code sent to ${_identifierController.text}.',
+                  _Step.resetPassword => 'Choose a new password for your account.',
+                  _Step.done => 'Your password has been reset. Please sign in.',
+                },
+              ),
+              const SizedBox(height: 28),
               if (_step == _Step.requestOtp) ...[
-                const Text('Enter your email or phone to receive a reset code.'),
-                const SizedBox(height: 16),
                 TextField(
                   controller: _identifierController,
-                  decoration: const InputDecoration(labelText: 'Email or phone'),
+                  decoration: const InputDecoration(
+                    labelText: 'Email or phone',
+                    prefixIcon: Icon(Icons.alternate_email, size: 20),
+                  ),
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton(
@@ -138,12 +151,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   child: _submitLabel('Send Code'),
                 ),
               ] else if (_step == _Step.verifyOtp) ...[
-                Text('Enter the code sent to ${_identifierController.text}.'),
-                const SizedBox(height: 16),
                 TextField(
                   controller: _otpController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Verification code'),
+                  decoration: const InputDecoration(
+                    labelText: 'Verification code',
+                    prefixIcon: Icon(Icons.pin_outlined, size: 20),
+                  ),
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton(
@@ -155,12 +169,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   child: const Text('Resend code'),
                 ),
               ] else if (_step == _Step.resetPassword) ...[
-                const Text('Choose a new password.'),
-                const SizedBox(height: 16),
                 TextField(
                   controller: _passwordController,
                   obscureText: true,
-                  decoration: const InputDecoration(labelText: 'New password'),
+                  decoration: const InputDecoration(
+                    labelText: 'New password',
+                    prefixIcon: Icon(Icons.lock_outline, size: 20),
+                  ),
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton(
@@ -168,9 +183,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   child: _submitLabel('Reset Password'),
                 ),
               ] else ...[
-                const Icon(Icons.check_circle, size: 48, color: Colors.green),
-                const SizedBox(height: 12),
-                const Text('Your password has been reset. Please sign in.'),
+                Icon(Icons.check_circle, size: 56, color: AppColors.primary),
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: () => Navigator.of(context).pop(),
@@ -179,7 +192,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               ],
               if (_error != null) ...[
                 const SizedBox(height: 14),
-                Text(_error!, style: const TextStyle(color: Colors.red)),
+                AuthErrorBanner(message: _error!),
               ],
             ],
           ),

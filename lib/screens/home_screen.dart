@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../models/product.dart';
 import '../services/catalog_service.dart';
@@ -64,7 +63,6 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> _banners = [];
   Map<String, dynamic>? _flashSale;
   List<Product> _flashProducts = [];
-  String _siteName = 'Alicom';
 
   final _bannerController = PageController();
   int _bannerIndex = 0;
@@ -102,8 +100,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ]);
 
       final branding = (results[5] is Map ? results[5]['data'] ?? results[5] : results[5]) as Map?;
-      final siteName = branding?['site_name'] as String?;
-      if (siteName != null && siteName.isNotEmpty) _siteName = siteName;
       final hex = branding?['theme_primary_color'] as String?;
       final parsed = _parseHexColor(hex);
       if (parsed != null) AppColors.setBrandPrimary(parsed);
@@ -257,11 +253,9 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           _iconSquare(Icons.menu, onTap: () => _scaffoldKey.currentState?.openDrawer()),
           const SizedBox(width: 12),
-          SvgPicture.asset('assets/images/alicom-mark.svg', width: 26, height: 26),
-          const SizedBox(width: 8),
-          Text(
-            _siteName,
-            style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: AppColors.inkStrong),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.asset('assets/images/app_logo.jpeg', height: 34, fit: BoxFit.contain),
           ),
           const Spacer(),
           _iconSquare(
@@ -294,7 +288,11 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Container(
         width: 42,
         height: 42,
-        decoration: BoxDecoration(color: AppColors.card, borderRadius: BorderRadius.circular(14)),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.line),
+        ),
         child: Stack(
           clipBehavior: Clip.none,
           children: [
@@ -343,6 +341,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 decoration: BoxDecoration(
                   color: AppColors.card,
                   borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.line),
                   boxShadow: [
                     BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 4)),
                   ],
@@ -364,7 +363,13 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Container(
               width: 48,
               height: 48,
-              decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(14)),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(color: AppColors.primary.withValues(alpha: 0.35), blurRadius: 12, offset: const Offset(0, 5)),
+                ],
+              ),
               child: const Icon(Icons.tune_rounded, color: Colors.white, size: 20),
             ),
           ),
@@ -572,16 +577,31 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.inkStrong)),
+          Row(
+            children: [
+              Container(
+                width: 4,
+                height: 18,
+                margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(999)),
+              ),
+              Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.inkStrong)),
+            ],
+          ),
           InkWell(
             onTap: onSeeAll,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('See All', style: TextStyle(color: AppColors.body, fontWeight: FontWeight.w500, fontSize: 13.5)),
-                const SizedBox(width: 2),
-                Icon(Icons.arrow_forward, size: 15, color: AppColors.body),
-              ],
+            borderRadius: BorderRadius.circular(999),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(color: AppColors.primarySoft, borderRadius: BorderRadius.circular(999)),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('See All', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 12.5)),
+                  const SizedBox(width: 3),
+                  Icon(Icons.arrow_forward, size: 13, color: AppColors.primary),
+                ],
+              ),
             ),
           ),
         ],
@@ -594,7 +614,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_categories.isEmpty) return const SizedBox.shrink();
     final items = _categories.take(6).toList();
     return SizedBox(
-      height: 92,
+      height: 96,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -614,10 +634,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   Container(
                     width: 56,
                     height: 56,
-                    decoration: BoxDecoration(color: style.bg, shape: BoxShape.circle),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [style.bg, Color.lerp(style.bg, Colors.white, 0.35)!],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: style.fg.withValues(alpha: 0.12)),
+                      boxShadow: [
+                        BoxShadow(color: style.fg.withValues(alpha: 0.16), blurRadius: 12, offset: const Offset(0, 5)),
+                      ],
+                    ),
                     child: Icon(style.icon, size: 24, color: style.fg),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 7),
                   Text(
                     name,
                     maxLines: 1,
@@ -651,10 +682,20 @@ class _HomeScreenState extends State<HomeScreen> {
           if (showTimer)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(color: const Color(0xFFFCE4EC), borderRadius: BorderRadius.circular(999)),
-              child: Text(
-                '${_twoDigits(_timeLeft.inHours)} : ${_twoDigits(_timeLeft.inMinutes % 60)} : ${_twoDigits(_timeLeft.inSeconds % 60)}',
-                style: TextStyle(color: AppColors.sale, fontWeight: FontWeight.w700, fontSize: 12.5),
+              decoration: BoxDecoration(
+                color: AppColors.sale.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.timer_outlined, size: 13, color: AppColors.sale),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${_twoDigits(_timeLeft.inHours)} : ${_twoDigits(_timeLeft.inMinutes % 60)} : ${_twoDigits(_timeLeft.inSeconds % 60)}',
+                    style: TextStyle(color: AppColors.sale, fontWeight: FontWeight.w700, fontSize: 12.5),
+                  ),
+                ],
               ),
             )
           else
@@ -702,10 +743,10 @@ class _HomeScreenState extends State<HomeScreen> {
         physics: const NeverScrollableScrollPhysics(),
         itemCount: _popular.length,
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 12,
-          childAspectRatio: 0.62,
+          crossAxisCount: 2,
+          mainAxisSpacing: 14,
+          crossAxisSpacing: 14,
+          childAspectRatio: 0.72,
         ),
         itemBuilder: (context, i) => _PopularCard(product: _popular[i]),
       ),
@@ -838,60 +879,121 @@ class _PopularCardState extends State<_PopularCard> {
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => ProductDetailScreen(slug: product.slug)),
       ),
-      borderRadius: BorderRadius.circular(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    width: double.infinity,
-                    height: double.infinity,
-                    color: AppColors.card,
-                    padding: const EdgeInsets.all(10),
-                    child: product.primaryImage.isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: product.primaryImage,
-                            fit: BoxFit.contain,
-                            placeholder: (_, __) => const SizedBox.shrink(),
-                            errorWidget: (_, __, ___) => Icon(Icons.image_not_supported_outlined, color: AppColors.body),
-                          )
-                        : Icon(Icons.image_not_supported_outlined, color: AppColors.body),
-                  ),
-                ),
-                Positioned(
-                  top: 6,
-                  right: 6,
-                  child: InkWell(
-                    onTap: _busy ? null : _toggleWishlist,
-                    customBorder: const CircleBorder(),
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 4))],
+        ),
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
                     child: Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        shape: BoxShape.circle,
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 4)],
-                      ),
-                      child: Icon(
-                        _wishlisted ? Icons.favorite : Icons.favorite_border,
-                        size: 12,
-                        color: _wishlisted ? AppColors.sale : AppColors.body,
+                      width: double.infinity,
+                      height: double.infinity,
+                      color: AppColors.background,
+                      padding: const EdgeInsets.all(12),
+                      child: product.primaryImage.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: product.primaryImage,
+                              fit: BoxFit.contain,
+                              placeholder: (_, __) => const SizedBox.shrink(),
+                              errorWidget: (_, __, ___) => Icon(Icons.image_not_supported_outlined, color: AppColors.body),
+                            )
+                          : Icon(Icons.image_not_supported_outlined, color: AppColors.body),
+                    ),
+                  ),
+                  if (product.discountPercentage > 0)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(color: AppColors.sale, borderRadius: BorderRadius.circular(999)),
+                        child: Text('-${product.discountPercentage}%', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
                       ),
                     ),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: InkWell(
+                      onTap: _busy ? null : _toggleWishlist,
+                      customBorder: const CircleBorder(),
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: AppColors.card,
+                          shape: BoxShape.circle,
+                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 6)],
+                        ),
+                        child: Icon(
+                          _wishlisted ? Icons.favorite : Icons.favorite_border,
+                          size: 14,
+                          color: _wishlisted ? AppColors.sale : AppColors.body,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(product.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.inkStrong)),
+            const SizedBox(height: 3),
+            Row(
+              children: [
+                if (product.averageRating != null && product.averageRating! > 0) ...[
+                  const Icon(Icons.star_rounded, size: 14, color: Color(0xFFF7B500)),
+                  const SizedBox(width: 2),
+                  Text(product.averageRating!.toStringAsFixed(1), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.bodyStrong)),
+                  const SizedBox(width: 6),
+                ],
+                Expanded(
+                  child: Text(
+                    product.category,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, color: AppColors.muted),
                   ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(product.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.inkStrong)),
-          const SizedBox(height: 2),
-          Text('\$${product.price.toStringAsFixed(2)}', style: TextStyle(color: AppColors.sale, fontWeight: FontWeight.w700, fontSize: 12.5)),
-        ],
+            const SizedBox(height: 5),
+            Row(
+              children: [
+                Text('\$${product.price.toStringAsFixed(2)}', style: TextStyle(color: AppColors.sale, fontWeight: FontWeight.w800, fontSize: 14)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: product.referencePrice > product.price
+                      ? Text(
+                          '\$${product.referencePrice.toStringAsFixed(2)}',
+                          maxLines: 1,
+                          style: TextStyle(color: AppColors.muted, fontSize: 11.5, decoration: TextDecoration.lineThrough),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+                InkWell(
+                  onTap: () => CartState.instance.addProduct(product),
+                  borderRadius: BorderRadius.circular(999),
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                    child: const Icon(Icons.add, color: Colors.white, size: 16),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

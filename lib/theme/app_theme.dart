@@ -7,10 +7,10 @@ import '../state/theme_state.dart';
 /// look in light mode; a dimmed variant of the same hues at night rather
 /// than a different brand.
 class _Dark {
-  static const primary = Color(0xFF3FBFB0);
-  static const primaryDark = Color(0xFF22A699);
-  static const primaryLight = Color(0xFF7FDCD0);
-  static const primarySoft = Color(0xFF16302E);
+  static const primary = Color(0xFF2CB5AC);
+  static const primaryDark = Color(0xFF0A9A92);
+  static const primaryLight = Color(0xFF6FD0C8);
+  static const primarySoft = Color(0xFF12302E);
   static const ink = Color(0xFFF5F4F8);
   static const inkStrong = Color(0xFFFFFFFF);
   static const body = Color(0xFFAEACB8);
@@ -26,10 +26,10 @@ class _Dark {
 }
 
 class _Light {
-  static const primary = Color(0xFF22A699);
-  static const primaryDark = Color(0xFF1B857B);
-  static const primaryLight = Color(0xFF5BC4B8);
-  static const primarySoft = Color(0xFFE1F5F2);
+  static const primary = Color(0xFF0A9A92);
+  static const primaryDark = Color(0xFF077E77);
+  static const primaryLight = Color(0xFF4DBDB4);
+  static const primarySoft = Color(0xFFE2F3F2);
   static const ink = Color(0xFF14142B);
   static const inkStrong = Color(0xFF0F0D16);
   static const body = Color(0xFF6E7191);
@@ -145,21 +145,32 @@ class AppTheme {
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
-        filled: false,
+        filled: true,
+        fillColor: palette,
         hintStyle: TextStyle(color: muted),
         labelStyle: TextStyle(color: body),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        prefixIconColor: muted,
+        suffixIconColor: muted,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: line),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: line),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: primary, width: 1.5),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: primary, width: 1.6),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Color(0xFFE94560)),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Color(0xFFE94560), width: 1.6),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -167,9 +178,11 @@ class AppTheme {
           backgroundColor: primary,
           foregroundColor: onAccent,
           elevation: 0,
+          minimumSize: const Size.fromHeight(52),
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-          textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15),
+          textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15.5),
+          shadowColor: primary.withValues(alpha: 0.4),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(

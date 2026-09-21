@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../state/theme_state.dart';
@@ -89,6 +90,19 @@ class AppColors {
 
 class AppTheme {
   AppTheme._();
+
+  /// Status/navigation bar colours for the active palette: light icons on
+  /// the near-black dark surfaces, dark icons on the off-white light ones.
+  /// Applied on every theme change and again when the splash (which uses
+  /// its own dark bars) hands over to the app.
+  static SystemUiOverlayStyle systemOverlayStyle(bool isDark) => SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+        systemNavigationBarColor: isDark ? const Color(0xFF0A0A0D) : const Color(0xFFF7F6FB),
+        systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      );
+
 
   static ThemeData get light => _build(Brightness.light);
   static ThemeData get dark => _build(Brightness.dark);

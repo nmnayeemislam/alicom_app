@@ -1,7 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../core/api_config.dart';
 import '../core/api_exception.dart';
+import '../core/money.dart';
 import '../services/order_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/state_views.dart';
@@ -156,7 +158,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         ...items.map((raw) {
           final item = raw as Map;
           final product = item['product'] as Map?;
-          final image = product?['image_url'] as String?;
+          final image = ApiConfig.resolveUrl(product?['image_url'] as String?);
           return Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: Row(
@@ -181,7 +183,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 ),
                 Text('x${item['quantity']}'),
                 const SizedBox(width: 8),
-                Text('৳${((item['subtotal'] as num?) ?? 0).toStringAsFixed(0)}'),
+                Text(formatPrice(item['subtotal'] as num?)),
               ],
             ),
           );
@@ -217,7 +219,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         children: [
           Text(label, style: bold ? const TextStyle(fontWeight: FontWeight.bold) : null),
           Text(
-            '৳${amount.toStringAsFixed(0)}',
+            formatPrice(amount),
             style: bold ? const TextStyle(fontWeight: FontWeight.bold) : null,
           ),
         ],

@@ -11,7 +11,9 @@ class Product {
   final double? originalPrice;
   final String? discountType; // 'percentage' | 'fixed'
   final String? sku;
-  final int stock;
+  /// Units on hand; `null` when the payload did not include stock at all
+  /// (e.g. the compact wishlist shape), which is *not* the same as sold out.
+  final int? stock;
   final String? unit;
   final List<String> images;
   final bool isWishlisted;
@@ -28,7 +30,7 @@ class Product {
     this.originalPrice,
     this.discountType,
     this.sku,
-    required this.stock,
+    this.stock,
     this.unit,
     this.images = const [],
     this.isWishlisted = false,
@@ -46,13 +48,16 @@ class Product {
     return (((referencePrice - price) / referencePrice) * 100).round();
   }
 
-  bool get inStock => stock > 0;
+  bool get inStock => stock == null || stock! > 0;
 
   factory Product.fromJson(Map<String, dynamic> json) {
+    // List endpoints send `images: [...]`; compact ones (wishlist, cart
+    // lines) send a single `image_url`. Accept either.
     final rawImages = json['images'];
-    final images = rawImages is List
+    final singleImage = (json['image_url'] ?? json['image'] ?? json['thumbnail'])?.toString();
+    final images = rawImages is List && rawImages.isNotEmpty
         ? rawImages.map((e) => e.toString()).toList()
-        : <String>[];
+        : (singleImage != null && singleImage.isNotEmpty ? [singleImage] : <String>[]);
 
     final rawTags = json['tags'];
     final tags = rawTags is List
@@ -71,10 +76,7 @@ class Product {
       originalPrice: _toDouble(json['original_price']),
       discountType: json['discount_type'] as String?,
       sku: json['sku'] as String?,
-      stock: (json['stock'] ?? json['stock_quantity'] ?? 0) is int
-          ? (json['stock'] ?? json['stock_quantity'] ?? 0) as int
-          : int.tryParse('${json['stock'] ?? json['stock_quantity'] ?? 0}') ??
-              0,
+      stock: _toInt(json['stock'] ?? json['stock_quantity']),
       unit: json['unit'] as String?,
       images: images,
       isWishlisted: json['is_wishlisted'] == true ||
@@ -83,6 +85,13 @@ class Product {
       averageRating: _toDouble(json['average_rating']),
       tags: tags,
     );
+  }
+
+  static int? _toInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
   }
 
   static double? _toDouble(dynamic value) {

@@ -1,20 +1,24 @@
 import 'dart:async';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../models/product.dart';
 import '../services/catalog_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/product_grid_card.dart';
 import '../widgets/state_views.dart';
 import 'notifications_screen.dart';
-import 'product_detail_screen.dart';
 
-/// Mirrors pages/products/index.vue: a searchable, filterable product grid,
-/// styled to the "Lumina" dark storefront pattern — filter chip row, section
-/// heading with a result count, and a two-column white-tile grid.
+/// Mirrors pages/products/index.vue: a searchable, filterable product grid —
+/// context-aware heading with a result count, filter chip row, and the same
+/// two-column [ProductGridCard] grid the home screen uses.
 class ProductsScreen extends StatefulWidget {
-  const ProductsScreen({super.key});
+  /// Pre-select a category (e.g. from a Home category chip). The name is
+  /// only for the heading while the filter options are still loading.
+  final String? initialCategorySlug;
+  final String? initialCategoryName;
+
+  const ProductsScreen({super.key, this.initialCategorySlug, this.initialCategoryName});
 
   @override
   State<ProductsScreen> createState() => _ProductsScreenState();
@@ -40,7 +44,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   List<Map> _categories = [];
   List<Map> _brands = [];
-  String? _selectedCategorySlug;
+  late String? _selectedCategorySlug = widget.initialCategorySlug;
   final Set<String> _selectedBrandSlugs = {};
   String? _selectedSort;
 
@@ -305,15 +309,44 @@ class _ProductsScreenState extends State<ProductsScreen> {
     _load(query: _searchController.text);
   }
 
+  bool get _hasActiveFilters =>
+      _selectedCategorySlug != null || _selectedBrandSlugs.isNotEmpty || _selectedSort != null;
+
+  void _clearFilters() {
+    setState(() {
+      _selectedCategorySlug = null;
+      _selectedBrandSlugs.clear();
+      _selectedSort = null;
+    });
+    _load(query: _searchController.text);
+  }
+
+  String? get _selectedCategoryName {
+    if (_selectedCategorySlug == null) return null;
+    final match = _categories.firstWhere(
+      (c) => c['slug'] == _selectedCategorySlug,
+      orElse: () => const {},
+    );
+    final name = match['name'] as String?;
+    if (name != null) return name;
+    // Categories may not have loaded yet; use the name the caller passed.
+    return _selectedCategorySlug == widget.initialCategorySlug ? widget.initialCategoryName : null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 8,
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
+        // Pushed from Home (category chip / See All) → back arrow; as the
+        // storefront tab there is nothing to pop, so show no leading icon.
+        automaticallyImplyLeading: false,
+        leading: Navigator.of(context).canPop()
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: () => Navigator.of(context).pop(),
+              )
+            : null,
         title: _searching
             ? TextField(
                 controller: _searchController,
@@ -369,8 +402,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
             : CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
-                  SliverToBoxAdapter(child: _buildFilterRow()),
                   SliverToBoxAdapter(child: _buildHeading()),
+                  SliverToBoxAdapter(child: _buildFilterRow()),
                   _products.isEmpty
                       ? const SliverFillRemaining(
                           hasScrollBody: false,
@@ -380,36 +413,43 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           ),
                         )
                       : SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                           sliver: SliverGrid(
                             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,
-                              mainAxisSpacing: 20,
-                              crossAxisSpacing: 16,
-                              childAspectRatio: 0.66,
+                              mainAxisSpacing: 14,
+                              crossAxisSpacing: 14,
+                              childAspectRatio: 0.68,
                             ),
                             delegate: SliverChildBuilderDelegate(
-                              (context, index) => _ProductTile(product: _products[index]),
+                              (context, index) => ProductGridCard(product: _products[index]),
                               childCount: _products.length,
                             ),
                           ),
                         ),
-                  if (_products.isNotEmpty && _hasMore)
+                  if (_products.isNotEmpty)
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
-                        child: Center(
-                          child: OutlinedButton(
-                            onPressed: _isLoadingMore ? null : _loadMore,
-                            child: _isLoadingMore
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                : const Text('Load More'),
-                          ),
-                        ),
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                        child: _hasMore
+                            ? OutlinedButton.icon(
+                                onPressed: _isLoadingMore ? null : _loadMore,
+                                icon: _isLoadingMore
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      )
+                                    : const Icon(Icons.expand_more_rounded, size: 18),
+                                label: Text(_isLoadingMore ? 'Loading…' : 'Load more products'),
+                                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                              )
+                            : Center(
+                                child: Text(
+                                  "You've seen everything.",
+                                  style: TextStyle(color: AppColors.muted, fontSize: 12.5),
+                                ),
+                              ),
                       ),
                     ),
                 ],
@@ -418,219 +458,172 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
-  Widget _buildFilterRow() {
-    final categoryLabel = _selectedCategorySlug == null
-        ? 'Category'
-        : (_categories.firstWhere(
-                (c) => c['slug'] == _selectedCategorySlug,
-                orElse: () => {'name': 'Category'},
-              )['name'] as String? ??
-              'Category');
-    final brandLabel = _selectedBrandSlugs.isEmpty ? 'Brand' : 'Brand (${_selectedBrandSlugs.length})';
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 0, 4),
-      child: SizedBox(
-        height: 44,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          children: [
-            _FilterChip(
-              label: categoryLabel,
-              icon: Icons.category_outlined,
-              active: _selectedCategorySlug != null,
-              onTap: _openCategorySheet,
-            ),
-            const SizedBox(width: 10),
-            _FilterChip(
-              label: brandLabel,
-              icon: Icons.storefront_outlined,
-              active: _selectedBrandSlugs.isNotEmpty,
-              onTap: _openBrandSheet,
-            ),
-            const SizedBox(width: 8),
-            _FilterChip(
-              label: _selectedSort == null ? 'Sort' : _sortOptions[_selectedSort]!,
-              icon: Icons.sort,
-              plain: true,
-              onTap: _openSortSheet,
-            ),
-            const SizedBox(width: 20),
-          ],
-        ),
-      ),
-    );
-  }
-
+  /// Title reflects what the grid is currently showing (search term or
+  /// category) so the page never claims to be a generic "New Arrivals".
   Widget _buildHeading() {
+    final query = _searchController.text.trim();
+    final categoryName = _selectedCategoryName;
+
+    final String title;
+    final String subtitle;
+    if (query.isNotEmpty) {
+      title = 'Results for “$query”';
+      subtitle = categoryName != null ? 'Matches in $categoryName' : 'Matches across the whole store';
+    } else if (categoryName != null) {
+      title = categoryName;
+      subtitle = 'Everything we carry in $categoryName';
+    } else {
+      title = 'All Products';
+      subtitle = 'Browse the full catalogue';
+    }
+
+    final count = _hasMore ? '${_products.length}+' : '${_products.length}';
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 16),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('New Arrivals', style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ) ?? Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 6),
                 Text(
-                  'Curated essentials for the modern wardrobe.',
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.4,
+                    color: AppColors.inkStrong,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 13, color: AppColors.muted),
                 ),
               ],
             ),
           ),
-          Text(
-            '${_products.length} Items',
-            style: Theme.of(context).textTheme.bodySmall,
+          const SizedBox(width: 12),
+          Container(
+            margin: const EdgeInsets.only(top: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.accentSoft,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              '$count items',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterRow() {
+    final categoryLabel = _selectedCategoryName ?? 'Category';
+    final brandLabel = _selectedBrandSlugs.isEmpty ? 'Brand' : 'Brand · ${_selectedBrandSlugs.length}';
+    final sortLabel = _selectedSort == null ? 'Sort' : _sortOptions[_selectedSort]!;
+
+    return SizedBox(
+      height: 40,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+        children: [
+          _FilterChip(
+            label: categoryLabel,
+            icon: Icons.grid_view_rounded,
+            active: _selectedCategorySlug != null,
+            onTap: _openCategorySheet,
+          ),
+          const SizedBox(width: 8),
+          _FilterChip(
+            label: brandLabel,
+            icon: Icons.storefront_outlined,
+            active: _selectedBrandSlugs.isNotEmpty,
+            onTap: _openBrandSheet,
+          ),
+          const SizedBox(width: 8),
+          _FilterChip(
+            label: sortLabel,
+            icon: Icons.swap_vert_rounded,
+            active: _selectedSort != null,
+            onTap: _openSortSheet,
+          ),
+          if (_hasActiveFilters) ...[
+            const SizedBox(width: 8),
+            _FilterChip(
+              label: 'Clear',
+              icon: Icons.close_rounded,
+              trailingIcon: false,
+              onTap: _clearFilters,
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
+/// Pill-shaped filter trigger. Inactive: outlined on the page background;
+/// active: filled with the ink colour so the applied filter reads at a glance.
 class _FilterChip extends StatelessWidget {
   final String label;
-  final IconData? icon;
+  final IconData icon;
   final bool active;
-  final bool plain;
+  final bool trailingIcon;
   final VoidCallback onTap;
 
   const _FilterChip({
     required this.label,
-    this.icon,
+    required this.icon,
     this.active = false,
-    this.plain = false,
+    this.trailingIcon = true,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (plain) {
-      return InkWell(
-        onTap: onTap,
+    final fg = active ? AppColors.onAccent : AppColors.inkStrong;
+    return Material(
+      color: active ? AppColors.inkStrong : AppColors.card,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(999),
+        side: BorderSide(color: active ? AppColors.inkStrong : AppColors.line),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(label, style: TextStyle(color: AppColors.inkStrong, fontWeight: FontWeight.w600)),
-              const SizedBox(width: 4),
-              Icon(icon, size: 16, color: AppColors.inkStrong),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: active ? AppColors.inkStrong : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: active ? AppColors.inkStrong : AppColors.line),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                color: active ? AppColors.onAccent : AppColors.ink,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
-            ),
-            if (icon != null) ...[
+              Icon(icon, size: 15, color: fg),
               const SizedBox(width: 6),
-              Icon(icon, size: 15, color: active ? AppColors.onAccent : AppColors.ink),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ProductTile extends StatelessWidget {
-  final Product product;
-  const _ProductTile({required this.product});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => ProductDetailScreen(slug: product.slug)),
-      ),
-      borderRadius: BorderRadius.circular(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                width: double.infinity,
-                color: Colors.white,
-                padding: const EdgeInsets.all(14),
-                child: product.primaryImage.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: product.primaryImage,
-                        fit: BoxFit.contain,
-                        placeholder: (_, __) => const Center(
-                          child: SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        ),
-                        errorWidget: (_, __, ___) => Icon(
-                          Icons.image_not_supported_outlined,
-                          color: AppColors.muted,
-                        ),
-                      )
-                    : Icon(Icons.image_not_supported_outlined, color: AppColors.muted),
+              Text(
+                label,
+                style: TextStyle(color: fg, fontWeight: FontWeight.w600, fontSize: 13),
               ),
-            ),
+              if (trailingIcon) ...[
+                const SizedBox(width: 2),
+                Icon(Icons.expand_more_rounded, size: 16, color: fg),
+              ],
+            ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            product.title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: AppColors.inkStrong,
-              fontWeight: FontWeight.w600,
-              fontSize: 14.5,
-            ),
-          ),
-          if (product.category.isNotEmpty) ...[
-            const SizedBox(height: 2),
-            Text(
-              product.category,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: AppColors.muted, fontSize: 12.5),
-            ),
-          ],
-          const SizedBox(height: 4),
-          Text(
-            '\$${product.price.toStringAsFixed(2)}',
-            style: TextStyle(
-              color: AppColors.sale,
-              fontWeight: FontWeight.w600,
-              fontSize: 13.5,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

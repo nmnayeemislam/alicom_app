@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/money.dart';
 import '../services/content_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/state_views.dart';
@@ -84,7 +85,7 @@ class _CouponCard extends StatelessWidget {
         ? null
         : discountType == 'percentage'
         ? '${discountValue.toStringAsFixed(0)}% OFF'
-        : '৳${discountValue.toStringAsFixed(0)} OFF';
+        : '${formatPrice(discountValue)} OFF';
 
     return Container(
       padding: const EdgeInsets.all(16),

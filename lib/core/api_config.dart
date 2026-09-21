@@ -15,6 +15,19 @@ class ApiConfig {
 
   static String get baseUrl => _override.isNotEmpty ? _override : _defaultBaseUrl;
 
+  /// Turns a path the API returned into something an image widget can load.
+  ///
+  /// Some endpoints (cart, order items) send storage-relative paths like
+  /// `dummy/images/demo/fan.webp` while others send full URLs, so anything
+  /// without a scheme is resolved against the API's origin (the host
+  /// without the `/api` prefix).
+  static String? resolveUrl(String? path) {
+    if (path == null || path.isEmpty) return null;
+    if (Uri.tryParse(path)?.hasScheme ?? false) return path;
+    final origin = Uri.parse(baseUrl).origin;
+    return '$origin/${path.startsWith('/') ? path.substring(1) : path}';
+  }
+
   static const Duration connectTimeout = Duration(seconds: 15);
   static const Duration receiveTimeout = Duration(seconds: 20);
 }

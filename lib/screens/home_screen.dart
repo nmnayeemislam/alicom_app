@@ -3,14 +3,15 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../core/money.dart';
 import '../models/product.dart';
 import '../services/catalog_service.dart';
 import '../services/content_service.dart';
 import '../services/settings_service.dart';
-import '../services/wishlist_service.dart';
 import '../state/cart_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_drawer.dart';
+import '../widgets/product_grid_card.dart';
 import '../widgets/state_views.dart';
 import 'cart_screen.dart';
 import 'notifications_screen.dart';
@@ -25,18 +26,38 @@ typedef _CategoryStyle = ({Color bg, Color fg, IconData icon});
 
 const _fallbackCategoryStyle = (bg: Color(0xFFEDEDF5), fg: Color(0xFF6E7191), icon: Icons.grid_view_rounded);
 
+// Matched by substring, first hit wins — so keep the specific keywords
+// ("appliance", "phone") above the broad ones ("home", "electronic").
 const _categoryStyles = <String, _CategoryStyle>{
-  'electronic': (bg: Color(0xFFE8E6FB), fg: Color(0xFF5B4FE5), icon: Icons.headphones),
-  'fashion': (bg: Color(0xFFFCE4EC), fg: Color(0xFFE94560), icon: Icons.checkroom),
-  'cloth': (bg: Color(0xFFFCE4EC), fg: Color(0xFFE94560), icon: Icons.checkroom),
-  'home': (bg: Color(0xFFE3F6E8), fg: Color(0xFF2E9E5B), icon: Icons.weekend),
-  'furniture': (bg: Color(0xFFE3F6E8), fg: Color(0xFF2E9E5B), icon: Icons.weekend),
-  'beauty': (bg: Color(0xFFFFE7EC), fg: Color(0xFFDB4C97), icon: Icons.spa),
-  'sport': (bg: Color(0xFFFFF1E0), fg: Color(0xFFF97316), icon: Icons.sports_basketball),
-  'grocery': (bg: Color(0xFFE3F6E8), fg: Color(0xFF2E9E5B), icon: Icons.local_grocery_store_outlined),
-  'food': (bg: Color(0xFFFFF1E0), fg: Color(0xFFF97316), icon: Icons.restaurant_outlined),
-  'book': (bg: Color(0xFFE8E6FB), fg: Color(0xFF5B4FE5), icon: Icons.menu_book_outlined),
-  'toy': (bg: Color(0xFFFCE7F3), fg: Color(0xFFDB4C97), icon: Icons.toys_outlined),
+  'phone': (bg: Color(0xFFE8E6FB), fg: Color(0xFF5B4FE5), icon: Icons.smartphone_rounded),
+  'mobile': (bg: Color(0xFFE8E6FB), fg: Color(0xFF5B4FE5), icon: Icons.smartphone_rounded),
+  'laptop': (bg: Color(0xFFE0F2FE), fg: Color(0xFF0284C7), icon: Icons.laptop_mac_rounded),
+  'computer': (bg: Color(0xFFE0F2FE), fg: Color(0xFF0284C7), icon: Icons.computer_rounded),
+  'tablet': (bg: Color(0xFFE0F2FE), fg: Color(0xFF0284C7), icon: Icons.tablet_mac_rounded),
+  'audio': (bg: Color(0xFFFCE7F3), fg: Color(0xFFDB4C97), icon: Icons.headphones_rounded),
+  'headphone': (bg: Color(0xFFFCE7F3), fg: Color(0xFFDB4C97), icon: Icons.headphones_rounded),
+  'speaker': (bg: Color(0xFFFCE7F3), fg: Color(0xFFDB4C97), icon: Icons.speaker_rounded),
+  'wearable': (bg: Color(0xFFFFF1E0), fg: Color(0xFFF97316), icon: Icons.watch_rounded),
+  'watch': (bg: Color(0xFFFFF1E0), fg: Color(0xFFF97316), icon: Icons.watch_rounded),
+  'appliance': (bg: Color(0xFFE3F6E8), fg: Color(0xFF2E9E5B), icon: Icons.kitchen_rounded),
+  'camera': (bg: Color(0xFFE8E6FB), fg: Color(0xFF5B4FE5), icon: Icons.photo_camera_rounded),
+  'gaming': (bg: Color(0xFFE8E6FB), fg: Color(0xFF5B4FE5), icon: Icons.sports_esports_rounded),
+  'tv': (bg: Color(0xFFE0F2FE), fg: Color(0xFF0284C7), icon: Icons.tv_rounded),
+  'accessor': (bg: Color(0xFFEDEDF5), fg: Color(0xFF6E7191), icon: Icons.cable_rounded),
+  'electronic': (bg: Color(0xFFE8E6FB), fg: Color(0xFF5B4FE5), icon: Icons.devices_rounded),
+  'shirt': (bg: Color(0xFFFCE4EC), fg: Color(0xFFE94560), icon: Icons.checkroom_rounded),
+  'fashion': (bg: Color(0xFFFCE4EC), fg: Color(0xFFE94560), icon: Icons.checkroom_rounded),
+  'cloth': (bg: Color(0xFFFCE4EC), fg: Color(0xFFE94560), icon: Icons.checkroom_rounded),
+  'shoe': (bg: Color(0xFFFCE4EC), fg: Color(0xFFE94560), icon: Icons.hiking_rounded),
+  'furniture': (bg: Color(0xFFE3F6E8), fg: Color(0xFF2E9E5B), icon: Icons.weekend_rounded),
+  'home': (bg: Color(0xFFE3F6E8), fg: Color(0xFF2E9E5B), icon: Icons.weekend_rounded),
+  'beauty': (bg: Color(0xFFFFE7EC), fg: Color(0xFFDB4C97), icon: Icons.spa_rounded),
+  'sport': (bg: Color(0xFFFFF1E0), fg: Color(0xFFF97316), icon: Icons.sports_basketball_rounded),
+  'grocery': (bg: Color(0xFFE3F6E8), fg: Color(0xFF2E9E5B), icon: Icons.local_grocery_store_rounded),
+  'food': (bg: Color(0xFFFFF1E0), fg: Color(0xFFF97316), icon: Icons.restaurant_rounded),
+  'fiction': (bg: Color(0xFFE8E6FB), fg: Color(0xFF5B4FE5), icon: Icons.auto_stories_rounded),
+  'book': (bg: Color(0xFFE8E6FB), fg: Color(0xFF5B4FE5), icon: Icons.menu_book_rounded),
+  'toy': (bg: Color(0xFFFCE7F3), fg: Color(0xFFDB4C97), icon: Icons.toys_rounded),
 };
 
 _CategoryStyle _styleForCategory(String name) {
@@ -623,9 +644,16 @@ class _HomeScreenState extends State<HomeScreen> {
         itemBuilder: (context, i) {
           final cat = items[i];
           final name = (cat['name'] ?? cat['title'] ?? '').toString();
+          final slug = cat['slug'] as String?;
           final style = _styleForCategory(name);
           return InkWell(
-            onTap: () => _goToProducts(context),
+            // Open the catalogue filtered to this category; without the slug
+            // every chip used to land on the unfiltered "All Products" list.
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ProductsScreen(initialCategorySlug: slug, initialCategoryName: name),
+              ),
+            ),
             borderRadius: BorderRadius.circular(16),
             child: SizedBox(
               width: 64,
@@ -746,9 +774,9 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisCount: 2,
           mainAxisSpacing: 14,
           crossAxisSpacing: 14,
-          childAspectRatio: 0.72,
+          childAspectRatio: 0.68,
         ),
-        itemBuilder: (context, i) => _PopularCard(product: _popular[i]),
+        itemBuilder: (context, i) => ProductGridCard(product: _popular[i]),
       ),
     );
   }
@@ -812,12 +840,12 @@ class _FlashCard extends StatelessWidget {
             const SizedBox(height: 4),
             Row(
               children: [
-                Text('\$${product.price.toStringAsFixed(2)}', style: TextStyle(color: AppColors.sale, fontWeight: FontWeight.w700, fontSize: 13)),
+                Text(formatPrice(product.price), style: TextStyle(color: AppColors.sale, fontWeight: FontWeight.w700, fontSize: 13)),
                 const SizedBox(width: 6),
                 Expanded(
                   child: product.referencePrice > product.price
                       ? Text(
-                          '\$${product.referencePrice.toStringAsFixed(2)}',
+                          formatPrice(product.referencePrice),
                           maxLines: 1,
                           style: TextStyle(color: AppColors.body, fontSize: 11, decoration: TextDecoration.lineThrough),
                         )
@@ -831,163 +859,6 @@ class _FlashCard extends StatelessWidget {
                     height: 22,
                     decoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
                     child: const Icon(Icons.add, color: Colors.white, size: 14),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PopularCard extends StatefulWidget {
-  final Product product;
-  const _PopularCard({required this.product});
-
-  @override
-  State<_PopularCard> createState() => _PopularCardState();
-}
-
-class _PopularCardState extends State<_PopularCard> {
-  late bool _wishlisted = widget.product.isWishlisted;
-  bool _busy = false;
-
-  Future<void> _toggleWishlist() async {
-    final id = widget.product.id;
-    if (id == null || _busy) return;
-    setState(() => _busy = true);
-    try {
-      await WishlistService.instance.toggle(id);
-      if (mounted) setState(() => _wishlisted = !_wishlisted);
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not update wishlist')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final product = widget.product;
-    return InkWell(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => ProductDetailScreen(slug: product.slug)),
-      ),
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 4))],
-        ),
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: Container(
-                      width: double.infinity,
-                      height: double.infinity,
-                      color: AppColors.background,
-                      padding: const EdgeInsets.all(12),
-                      child: product.primaryImage.isNotEmpty
-                          ? CachedNetworkImage(
-                              imageUrl: product.primaryImage,
-                              fit: BoxFit.contain,
-                              placeholder: (_, __) => const SizedBox.shrink(),
-                              errorWidget: (_, __, ___) => Icon(Icons.image_not_supported_outlined, color: AppColors.body),
-                            )
-                          : Icon(Icons.image_not_supported_outlined, color: AppColors.body),
-                    ),
-                  ),
-                  if (product.discountPercentage > 0)
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(color: AppColors.sale, borderRadius: BorderRadius.circular(999)),
-                        child: Text('-${product.discountPercentage}%', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
-                      ),
-                    ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: InkWell(
-                      onTap: _busy ? null : _toggleWishlist,
-                      customBorder: const CircleBorder(),
-                      child: Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: AppColors.card,
-                          shape: BoxShape.circle,
-                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 6)],
-                        ),
-                        child: Icon(
-                          _wishlisted ? Icons.favorite : Icons.favorite_border,
-                          size: 14,
-                          color: _wishlisted ? AppColors.sale : AppColors.body,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(product.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.inkStrong)),
-            const SizedBox(height: 3),
-            Row(
-              children: [
-                if (product.averageRating != null && product.averageRating! > 0) ...[
-                  const Icon(Icons.star_rounded, size: 14, color: Color(0xFFF7B500)),
-                  const SizedBox(width: 2),
-                  Text(product.averageRating!.toStringAsFixed(1), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.bodyStrong)),
-                  const SizedBox(width: 6),
-                ],
-                Expanded(
-                  child: Text(
-                    product.category,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11, color: AppColors.muted),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 5),
-            Row(
-              children: [
-                Text('\$${product.price.toStringAsFixed(2)}', style: TextStyle(color: AppColors.sale, fontWeight: FontWeight.w800, fontSize: 14)),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: product.referencePrice > product.price
-                      ? Text(
-                          '\$${product.referencePrice.toStringAsFixed(2)}',
-                          maxLines: 1,
-                          style: TextStyle(color: AppColors.muted, fontSize: 11.5, decoration: TextDecoration.lineThrough),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-                InkWell(
-                  onTap: () => CartState.instance.addProduct(product),
-                  borderRadius: BorderRadius.circular(999),
-                  child: Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-                    child: const Icon(Icons.add, color: Colors.white, size: 16),
                   ),
                 ),
               ],

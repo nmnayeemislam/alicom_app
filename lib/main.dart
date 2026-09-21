@@ -21,18 +21,8 @@ class AlicomApp extends StatelessWidget {
       listenable: ThemeState.instance,
       builder: (context, _) {
         final isDark = ThemeState.instance.isDark;
-        // Matches the system status/nav bar to whichever palette is active
-        // — light icons on the near-black Lumina dark surfaces, dark icons
-        // on the off-white light surfaces.
-        SystemChrome.setSystemUIOverlayStyle(
-          SystemUiOverlayStyle(
-            statusBarColor: Colors.transparent,
-            statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
-            statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
-            systemNavigationBarColor: isDark ? const Color(0xFF0A0A0D) : const Color(0xFFF7F6FB),
-            systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
-          ),
-        );
+        // Matches the system status/nav bar to whichever palette is active.
+        SystemChrome.setSystemUIOverlayStyle(AppTheme.systemOverlayStyle(isDark));
 
         // AppColors is read as plain static values (not Theme.of(context))
         // across most screens, so a mode switch needs a full remount for

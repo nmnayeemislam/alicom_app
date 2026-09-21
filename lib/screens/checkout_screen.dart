@@ -1,7 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../core/api_config.dart';
 import '../core/api_exception.dart';
+import '../core/money.dart';
 import '../services/commerce_service.dart';
 import '../services/settings_service.dart';
 import '../state/auth_state.dart';
@@ -28,7 +30,11 @@ class _PaymentMethod {
 /// the backend attach the order to the account instead of a guest phone
 /// lookup, per CheckoutOrderController's own comment.
 class CheckoutScreen extends StatefulWidget {
-  const CheckoutScreen({super.key});
+  /// Promo code already validated on the cart screen; it is re-checked here
+  /// so the discount shown is always the server's answer.
+  final String? initialCoupon;
+
+  const CheckoutScreen({super.key, this.initialCoupon});
 
   @override
   State<CheckoutScreen> createState() => _CheckoutScreenState();
@@ -67,6 +73,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     _phoneController.text = AuthState.instance.user?.phone ?? '';
     _nameController.text = AuthState.instance.user?.name ?? '';
     _loadOptions();
+    final coupon = widget.initialCoupon?.trim();
+    if (coupon != null && coupon.isNotEmpty) {
+      _couponController.text = coupon;
+      _applyCoupon();
+    }
   }
 
   @override
@@ -383,7 +394,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             Padding(
                               padding: const EdgeInsets.only(top: 6),
                               child: Text(
-                                'Coupon "$_appliedCoupon" applied — saving ৳${_discountAmount.toStringAsFixed(0)}',
+                                'Coupon "$_appliedCoupon" applied — saving ${formatPrice(_discountAmount)}',
                                 style: TextStyle(color: AppColors.accentLight, fontSize: 12),
                               ),
                             ),
@@ -405,7 +416,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           ...CartState.instance.items.map((raw) {
                             final item = raw as Map;
                             final title = item['product_title'] as String? ?? 'Item';
-                            final image = item['product_image'] as String?;
+                            final image = ApiConfig.resolveUrl(item['product_image'] as String?);
                             final qty = (item['quantity'] as num?)?.toInt() ?? 1;
                             final subtotal = (item['subtotal'] as num?)?.toDouble() ??
                                 (item['price'] as num?)?.toDouble() ?? 0;
@@ -435,7 +446,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                     ),
                                   ),
                                   Text(
-                                    '৳${subtotal.toStringAsFixed(0)}',
+                                    formatPrice(subtotal),
                                     style: const TextStyle(fontWeight: FontWeight.w600),
                                   ),
                                 ],
@@ -505,20 +516,24 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.card,
+    // Material, not a decorated Container: the payment RadioListTiles paint
+    // their ink on the nearest Material, which a plain colored box hides.
+    return Material(
+      color: AppColors.card,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.line),
+        side: BorderSide(color: AppColors.line),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(title, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 14),
-          child,
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(title, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 14),
+            child,
+          ],
+        ),
       ),
     );
   }
@@ -556,7 +571,7 @@ class _SummaryRow extends StatelessWidget {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           else
-            Text('৳${(value ?? 0).toStringAsFixed(0)}', style: style),
+            Text(formatPrice(value), style: style),
         ],
       ),
     );

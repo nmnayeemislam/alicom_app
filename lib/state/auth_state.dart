@@ -85,6 +85,13 @@ class AuthState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updateProfilePhoto(String filePath) async {
+    final current = user;
+    if (current == null) return;
+    user = await AuthService.instance.uploadProfilePhoto(current: current, filePath: filePath);
+    notifyListeners();
+  }
+
   Future<void> logout() async {
     await AuthService.instance.logout();
     user = null;

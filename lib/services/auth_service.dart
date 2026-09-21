@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+
 import '../core/api_client.dart';
 import '../core/api_endpoints.dart';
 import '../core/token_storage.dart';
@@ -157,6 +159,29 @@ class AuthService {
         'address': ?address,
       },
     );
+    final body = response.data as Map<String, dynamic>;
+    final data = body['data'] as Map<String, dynamic>;
+    return AppUser.fromJson(data['user'] as Map<String, dynamic>);
+  }
+
+  /// Uploads a new profile photo. UpdateProfileRequest still requires
+  /// name / country_iso / phone, so the current values are re-sent alongside
+  /// the file; Laravel reads the multipart body only on POST, hence the
+  /// `_method=PUT` spoof. Returns the user with the new `profile_photo` URL.
+  Future<AppUser> uploadProfilePhoto({
+    required AppUser current,
+    required String filePath,
+  }) async {
+    final form = FormData.fromMap({
+      '_method': 'PUT',
+      'name': current.name ?? '',
+      'country_iso': current.countryIso ?? '',
+      'phone': current.phone ?? '',
+      'email': ?current.email,
+      'address': ?current.address,
+      'profile_photo': await MultipartFile.fromFile(filePath),
+    });
+    final response = await _client.post(ApiEndpoints.profile, data: form);
     final body = response.data as Map<String, dynamic>;
     final data = body['data'] as Map<String, dynamic>;
     return AppUser.fromJson(data['user'] as Map<String, dynamic>);

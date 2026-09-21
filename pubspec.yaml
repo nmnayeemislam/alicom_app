@@ -41,6 +41,7 @@ dependencies:
   cached_network_image: ^3.4.1
   flutter_svg: ^2.0.17
   url_launcher: ^6.3.1
+  image_picker: ^1.2.3
 
 dev_dependencies:
   flutter_test:
@@ -105,13 +106,17 @@ flutter_launcher_icons:
   adaptive_icon_foreground: "assets/icons/app_icon.png"
   remove_alpha_ios: true
 
+# Native (pre-Flutter) splash. Same deep-teal as the in-app SplashScreen so
+# there is no white flash before it, and a padded logo so the Android 12+
+# circular mask does not crop the bag. Regenerate with:
+#   dart run flutter_native_splash:create
 flutter_native_splash:
-  color: "#FFFFFF"
-  image: "assets/icons/app_icon.png"
-  color_dark: "#0F240F"
-  image_dark: "assets/icons/app_icon.png"
+  color: "#022728"
+  image: "assets/icons/splash_logo.png"
+  color_dark: "#022728"
+  image_dark: "assets/icons/splash_logo.png"
   android_12:
-    image: "assets/icons/app_icon.png"
-    icon_background_color: "#FFFFFF"
-    image_dark: "assets/icons/app_icon.png"
-    icon_background_color_dark: "#0F240F"
+    image: "assets/icons/splash_logo.png"
+    icon_background_color: "#022728"
+    image_dark: "assets/icons/splash_logo.png"
+    icon_background_color_dark: "#022728"

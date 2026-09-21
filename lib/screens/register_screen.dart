@@ -78,7 +78,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
         password: _passwordController.text,
       );
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        // Registration also signs the user in, so leave the whole auth flow
+        // (Register + Login) rather than dropping back onto the login form.
+        final nav = Navigator.of(context);
+        nav.pop();
+        if (nav.canPop()) nav.pop();
+      }
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {

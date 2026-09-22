@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import '../core/money.dart';
 import '../models/product.dart';
 import '../services/catalog_service.dart';
-import '../services/wishlist_service.dart';
 import '../state/auth_state.dart';
+import '../state/wishlist_state.dart';
 import '../state/cart_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/state_views.dart';
@@ -57,7 +57,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           as Map;
       final productData = (data['product'] ?? data) as Map;
       _product = Product.fromJson(productData.cast<String, dynamic>());
-      _wishlisted = _product!.isWishlisted;
+      // The shared wishlist wins once it has been loaded for this account;
+      // otherwise trust the flag the product payload carried.
+      _wishlisted = WishlistState.instance.loadedForUserId != null
+          ? WishlistState.instance.contains(_product!.id)
+          : _product!.isWishlisted;
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -132,8 +136,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
     setState(() => _wishlistBusy = true);
     try {
-      await WishlistService.instance.toggle(id);
-      if (mounted) setState(() => _wishlisted = !_wishlisted);
+      final wishlisted = await WishlistState.instance.toggle(_product!);
+      if (mounted) setState(() => _wishlisted = wishlisted);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../models/product.dart';
-import '../services/wishlist_service.dart';
 import '../state/auth_state.dart';
+import '../state/wishlist_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/product_grid_card.dart';
 import '../widgets/state_views.dart';
@@ -18,12 +17,7 @@ class WishlistScreen extends StatefulWidget {
 }
 
 class _WishlistScreenState extends State<WishlistScreen> {
-  bool _isLoading = true;
-  String? _error;
-  List<Product> _products = [];
-  // Which account the current list belongs to, so a sign-in/out while this
-  // tab stays alive in the shell reloads instead of showing stale items.
-  int? _loadedForUserId;
+  final _wishlist = WishlistState.instance;
 
   @override
   void initState() {
@@ -41,36 +35,14 @@ class _WishlistScreenState extends State<WishlistScreen> {
   void _onAuthChanged() {
     if (!mounted) return;
     final auth = AuthState.instance;
-    if (auth.isAuthenticated && auth.user?.id != _loadedForUserId) {
+    if (auth.isAuthenticated && auth.user?.id != _wishlist.loadedForUserId) {
       _load();
     } else if (!auth.isAuthenticated) {
-      setState(() {
-        _products = [];
-        _loadedForUserId = null;
-      });
+      _wishlist.clear();
     }
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-    try {
-      final response = await WishlistService.instance.index();
-      final data = (response is Map ? response['data'] ?? response : {}) as Map;
-      final list = (data['products'] as List?) ?? [];
-      _products = list
-          .whereType<Map>()
-          .map((e) => Product.fromJson(e.cast<String, dynamic>()))
-          .toList();
-      _loadedForUserId = AuthState.instance.user?.id;
-    } catch (e) {
-      _error = e.toString();
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
+  Future<void> _load() => _wishlist.refresh();
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +60,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
     );
 
     return ListenableBuilder(
-      listenable: AuthState.instance,
+      listenable: Listenable.merge([AuthState.instance, _wishlist]),
       builder: (context, _) {
         if (!AuthState.instance.isAuthenticated) {
           return Scaffold(
@@ -128,11 +100,11 @@ class _WishlistScreenState extends State<WishlistScreen> {
           appBar: appBar,
           body: RefreshIndicator(
             onRefresh: _load,
-            child: _isLoading
+            child: _wishlist.isLoading && _wishlist.products.isEmpty
                 ? const LoadingView()
-                : _error != null
-                ? ErrorView(message: _error!, onRetry: _load)
-                : _products.isEmpty
+                : _wishlist.error != null && _wishlist.products.isEmpty
+                ? ErrorView(message: _wishlist.error!, onRetry: _load)
+                : _wishlist.products.isEmpty
                 ? const EmptyView(
                     icon: Icons.favorite_border_rounded,
                     message: 'Your wishlist is empty.',
@@ -140,7 +112,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
                 : GridView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                     physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: _products.length,
+                    itemCount: _wishlist.products.length,
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       mainAxisSpacing: 14,
@@ -148,15 +120,12 @@ class _WishlistScreenState extends State<WishlistScreen> {
                       childAspectRatio: 0.68,
                     ),
                     itemBuilder: (context, index) {
-                      final product = _products[index];
+                      // Un-hearting drops the item from WishlistState, which
+                      // rebuilds this grid on its own.
+                      final product = _wishlist.products[index];
                       return ProductGridCard(
                         key: ValueKey(product.id ?? product.slug),
                         product: product,
-                        onWishlistChanged: (wishlisted) {
-                          if (!wishlisted && mounted) {
-                            setState(() => _products.removeWhere((p) => p.id == product.id));
-                          }
-                        },
                       );
                     },
                   ),

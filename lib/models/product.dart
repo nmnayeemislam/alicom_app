@@ -50,6 +50,26 @@ class Product {
 
   bool get inStock => stock == null || stock! > 0;
 
+  /// Same product with a different wishlist flag — used when the wishlist
+  /// toggle's response, not the listing payload, is the authority.
+  Product copyWithWishlisted(bool wishlisted) => Product(
+        id: id,
+        slug: slug,
+        title: title,
+        category: category,
+        shortDescription: shortDescription,
+        price: price,
+        originalPrice: originalPrice,
+        discountType: discountType,
+        sku: sku,
+        stock: stock,
+        unit: unit,
+        images: images,
+        isWishlisted: wishlisted,
+        averageRating: averageRating,
+        tags: tags,
+      );
+
   factory Product.fromJson(Map<String, dynamic> json) {
     // List endpoints send `images: [...]`; compact ones (wishlist, cart
     // lines) send a single `image_url`. Accept either.

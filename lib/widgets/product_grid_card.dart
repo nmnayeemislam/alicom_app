@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import '../core/money.dart';
 import '../models/product.dart';
 import '../screens/product_detail_screen.dart';
-import '../services/wishlist_service.dart';
 import '../state/cart_state.dart';
+import '../state/wishlist_state.dart';
 import '../theme/app_theme.dart';
 
 /// The two-column storefront card shared by Home ("Popular Products") and
@@ -27,18 +27,23 @@ class ProductGridCard extends StatefulWidget {
 }
 
 class _ProductGridCardState extends State<ProductGridCard> {
-  late bool _wishlisted = widget.product.isWishlisted;
   bool _busy = false;
   bool _adding = false;
+
+  /// Prefer the shared wishlist once it has been loaded for this account —
+  /// a heart tapped on another screen has to show here too. Before that,
+  /// fall back to the flag the listing payload carried.
+  bool get _wishlisted => WishlistState.instance.loadedForUserId != null
+      ? WishlistState.instance.contains(widget.product.id)
+      : widget.product.isWishlisted;
 
   Future<void> _toggleWishlist() async {
     final id = widget.product.id;
     if (id == null || _busy) return;
     setState(() => _busy = true);
     try {
-      await WishlistService.instance.toggle(id);
-      if (mounted) setState(() => _wishlisted = !_wishlisted);
-      widget.onWishlistChanged?.call(_wishlisted);
+      final wishlisted = await WishlistState.instance.toggle(widget.product);
+      widget.onWishlistChanged?.call(wishlisted);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -79,6 +84,14 @@ class _ProductGridCardState extends State<ProductGridCard> {
   @override
   Widget build(BuildContext context) {
     final product = widget.product;
+    // Rebuilds the heart when the wishlist changes anywhere else in the app.
+    return ListenableBuilder(
+      listenable: WishlistState.instance,
+      builder: (context, _) => _buildCard(context, product),
+    );
+  }
+
+  Widget _buildCard(BuildContext context, Product product) {
     return InkWell(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => ProductDetailScreen(slug: product.slug)),

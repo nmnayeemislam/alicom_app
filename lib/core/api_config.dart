@@ -1,11 +1,21 @@
-/// Central place to point the app at the Laravel backend.
+/// The single place the API host is configured — nothing else in the app
+/// builds a base URL.
 ///
-/// Defaults to the UAT deployment so builds work out of the box without a
-/// local server. Override at build time with
-/// `--dart-define=API_BASE_URL=https://your-host/api` for other
-/// environments (e.g. pointing back at a local `php artisan serve` during
-/// development — use `http://10.0.2.2:8000/api` on the Android emulator,
-/// `http://localhost:8000/api` elsewhere).
+/// The default points at the dev machine running `php artisan serve` on the
+/// office LAN. That address changes whenever the router restarts, so rather
+/// than editing this file, override it at build time:
+///
+///   `--dart-define=API_BASE_URL=http://<lan-ip>:8000/api`  real device
+///   --dart-define=API_BASE_URL=http://10.0.2.2:8000/api   Android emulator
+///   --dart-define=API_BASE_URL=http://localhost:8000/api  iOS Simulator
+///   --dart-define=API_BASE_URL=https://uat-alicom.razinsoft.com/api  UAT
+///
+/// Note the port is 8000 (`artisan serve`'s default), not 8001.
+///
+/// A plain-HTTP host needs the cleartext exemptions that go with it:
+/// `android/app/src/debug/res/xml/network_security_config.xml` for debug
+/// Android builds, and `NSAllowsLocalNetworking` in `ios/Runner/Info.plist`.
+/// Release builds still require HTTPS.
 class ApiConfig {
   ApiConfig._();
 

@@ -7,7 +7,7 @@
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>
-		<string>Alicom App</string>
+		<string>Alicom</string>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>
@@ -30,7 +30,15 @@
 		<dict>
 			<!-- Exempts only the local dev backend from ATS's HTTPS requirement.
 		     Production API domains must use HTTPS; this must not be widened
-		     to NSAllowsArbitraryLoads for App Store submission. -->
+		     to NSAllowsArbitraryLoads for App Store submission.
+
+		     NSAllowsLocalNetworking covers the private LAN ranges
+		     (192.168.x.x, 10.x.x.x, …) so a real device on the office WiFi can
+		     reach `php artisan serve` without pinning the dev machine's IP
+		     here — that IP changes whenever the router restarts. It does not
+		     relax ATS for any routable internet host. -->
+			<key>NSAllowsLocalNetworking</key>
+			<true/>
 			<key>NSExceptionDomains</key>
 			<dict>
 				<key>localhost</key>
@@ -83,7 +91,11 @@
 		<key>UIStatusBarHidden</key>
 		<false/>
 		<key>NSCameraUsageDescription</key>
-		<string>Take a photo to use as your profile picture.</string>
+		<string>Take a profile photo and scan referral QR codes.</string>
+		<!-- Referral Universal Links are handled by app_links
+		     (lib/core/deep_links.dart), not Flutter's built-in deep linking. -->
+		<key>FlutterDeepLinkingEnabled</key>
+		<false/>
 		<key>NSPhotoLibraryUsageDescription</key>
 		<string>Choose a photo to use as your profile picture.</string>
 	</dict>

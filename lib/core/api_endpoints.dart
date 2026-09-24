@@ -59,6 +59,14 @@ class ApiEndpoints {
   static const cartItems = '/cart/items';
   static String cartItem(int itemId) => '/cart/items/$itemId';
 
+  // Referral & loyalty points (validate is public; the rest need auth)
+  static const referral = '/referral';
+  static const referralValidate = '/referral/validate';
+  static const referralApply = '/referral/apply';
+  static const referralHistory = '/referral/history';
+  static const referralRewards = '/referral/rewards';
+  static const referralRedeem = '/referral/redeem';
+
   // Customer (authenticated)
   static const addresses = '/addresses';
   static String address(int id) => '/addresses/$id';

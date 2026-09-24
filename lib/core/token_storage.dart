@@ -9,7 +9,20 @@ class TokenStorage {
   static const _tokenKey = 'auth_token';
   final _storage = const FlutterSecureStorage();
 
-  Future<String?> readToken() => _storage.read(key: _tokenKey);
+  /// Returns `null` rather than throwing when the keystore is unreadable.
+  ///
+  /// This runs in [ApiClient]'s request interceptor, so letting it throw
+  /// would fail *every* request — including the public catalogue, which
+  /// needs no token at all. A locked or corrupted keystore (and a unit-test
+  /// VM with no plugin registered) should degrade to browsing as a guest,
+  /// not to a dead app.
+  Future<String?> readToken() async {
+    try {
+      return await _storage.read(key: _tokenKey);
+    } catch (_) {
+      return null;
+    }
+  }
 
   Future<void> saveToken(String token) =>
       _storage.write(key: _tokenKey, value: token);

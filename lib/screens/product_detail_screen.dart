@@ -214,7 +214,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   Widget _buildDetail(Product product) {
-    final description = product.shortDescription?.trim() ?? '';
+    // The detail payload carries the full `description`; only fall back to
+    // the card's `short_description` when it is absent.
+    final description = (product.description?.trim().isNotEmpty == true
+            ? product.description
+            : product.shortDescription)
+        ?.trim() ??
+        '';
     final isLongDescription = description.length > 140;
     final ratingFromReviews = (_reviewSummary?['average'] as num?)?.toDouble();
     final rating = ratingFromReviews != null && ratingFromReviews > 0
@@ -300,17 +306,19 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               decoration: TextDecoration.lineThrough,
                             ),
                           ),
-                        if (product.discountPercentage > 0)
+                        // The server's `discount_label` ("10% OFF"), shown
+                        // only when there is an old price to strike through.
+                        if (product.referencePrice > product.price && product.discountBadge != null)
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: AppColors.inkStrong,
+                              color: AppColors.sale,
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
-                              '${product.discountPercentage}%',
-                              style: TextStyle(
-                                color: AppColors.card,
+                              product.discountBadge!,
+                              style: const TextStyle(
+                                color: Colors.white,
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w700,
                               ),

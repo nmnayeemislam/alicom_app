@@ -113,12 +113,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                     physics: const AlwaysScrollableScrollPhysics(),
                     itemCount: _wishlist.products.length,
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 14,
-                      crossAxisSpacing: 14,
-                      childAspectRatio: 0.68,
-                    ),
+                    gridDelegate: ProductGridDelegate.of(context),
                     itemBuilder: (context, index) {
                       // Un-hearting drops the item from WishlistState, which
                       // rebuilds this grid on its own.

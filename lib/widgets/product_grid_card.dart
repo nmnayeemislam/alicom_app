@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../core/money.dart';
 import '../models/product.dart';
@@ -8,14 +11,23 @@ import '../state/cart_state.dart';
 import '../state/wishlist_state.dart';
 import '../theme/app_theme.dart';
 
-/// The two-column storefront card shared by Home ("Popular Products") and
-/// the Products tab, so a product looks the same wherever it is listed:
-/// soft-shadow card, image on a tinted tile with a discount pill and a
-/// wishlist toggle, then title, rating + category, and the price row with
-/// an add-to-cart button.
+/// The two-column storefront card shared by Home, the Products tab and
+/// Wishlist, so a product looks the same wherever it is listed: an
+/// edge-to-edge photo with a "New" badge and a wishlist heart,
+/// then the brand, a one-line name, and the price beside a round add button.
 ///
-/// Lay it out with `childAspectRatio: 0.68` in a 2-column grid.
+/// Lay it out with [ProductGridDelegate] (or, in a horizontal row, a height
+/// of `width + infoHeightFor(context)`), which makes the photo square.
 class ProductGridCard extends StatefulWidget {
+  /// Height of everything under the photo — brand line, name, price row and
+  /// padding. The text parts grow with the system font size; the paddings
+  /// and the 36px add button do not. Measured at 1.0 scale as ~104px, with
+  /// a few px spare so a large font never overflows.
+  static double infoHeightFor(BuildContext context) {
+    final scale = MediaQuery.textScalerOf(context).scale(10) / 10;
+    return 36 + 72 * scale;
+  }
+
   final Product product;
   /// Fired after the wishlist toggle round-trips, with the new state — the
   /// Wishlist tab uses it to drop un-hearted items from its grid.
@@ -29,6 +41,19 @@ class ProductGridCard extends StatefulWidget {
 class _ProductGridCardState extends State<ProductGridCard> {
   bool _busy = false;
   bool _adding = false;
+
+  /// Briefly true after a successful add, so the + turns into a ✓.
+  bool _justAdded = false;
+  Timer? _justAddedTimer;
+
+  /// Finger is down on the card — drives the slight press-in scale.
+  bool _pressed = false;
+
+  @override
+  void dispose() {
+    _justAddedTimer?.cancel();
+    super.dispose();
+  }
 
   /// Prefer the shared wishlist once it has been loaded for this account —
   /// a heart tapped on another screen has to show here too. Before that,
@@ -61,6 +86,11 @@ class _ProductGridCardState extends State<ProductGridCard> {
     try {
       await CartState.instance.addProduct(widget.product);
       if (mounted) {
+        setState(() => _justAdded = true);
+        _justAddedTimer?.cancel();
+        _justAddedTimer = Timer(const Duration(milliseconds: 1400), () {
+          if (mounted) setState(() => _justAdded = false);
+        });
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(
@@ -92,159 +122,360 @@ class _ProductGridCardState extends State<ProductGridCard> {
   }
 
   Widget _buildCard(BuildContext context, Product product) {
-    return InkWell(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => ProductDetailScreen(slug: product.slug)),
-      ),
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
+    final label = (product.brandName?.isNotEmpty == true ? product.brandName! : product.category).toUpperCase();
+    const radius = BorderRadius.all(Radius.circular(20));
+    return AnimatedScale(
+      scale: _pressed ? 0.97 : 1,
+      duration: const Duration(milliseconds: 140),
+      curve: Curves.easeOut,
+      // The shadow sits on an outer box: painted as Ink inside the Material
+      // it filled the card itself and turned the white info area grey.
+      child: DecoratedBox(
         decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 4))],
+          borderRadius: radius,
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 18, offset: const Offset(0, 6)),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 3, offset: const Offset(0, 1)),
+          ],
         ),
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: Container(
-                      width: double.infinity,
-                      height: double.infinity,
-                      color: AppColors.background,
-                      padding: const EdgeInsets.all(12),
-                      child: product.primaryImage.isNotEmpty
-                          ? CachedNetworkImage(
-                              imageUrl: product.primaryImage,
-                              fit: BoxFit.contain,
-                              placeholder: (_, _) => const SizedBox.shrink(),
-                              errorWidget: (_, _, _) => Icon(Icons.image_not_supported_outlined, color: AppColors.body),
-                            )
-                          : Icon(Icons.image_not_supported_outlined, color: AppColors.body),
-                    ),
-                  ),
-                  if (product.discountPercentage > 0)
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(color: AppColors.sale, borderRadius: BorderRadius.circular(999)),
-                        child: Text('-${product.discountPercentage}%', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
-                      ),
-                    ),
-                  if (!product.inStock)
-                    Positioned(
-                      bottom: 8,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(color: AppColors.inkStrong.withValues(alpha: 0.75), borderRadius: BorderRadius.circular(999)),
-                        child: Text('Out of stock', style: TextStyle(color: AppColors.card, fontSize: 10, fontWeight: FontWeight.w600)),
-                      ),
-                    ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: InkWell(
-                      onTap: _busy ? null : _toggleWishlist,
-                      customBorder: const CircleBorder(),
-                      child: Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: AppColors.card,
-                          shape: BoxShape.circle,
-                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 6)],
-                        ),
-                        child: Icon(
-                          _wishlisted ? Icons.favorite : Icons.favorite_border,
-                          size: 14,
-                          color: _wishlisted ? AppColors.sale : AppColors.body,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+        child: Material(
+          color: AppColors.card,
+          shape: RoundedRectangleBorder(
+            borderRadius: radius,
+            // Hairline edge keeps the white card crisp on the pale page.
+            side: BorderSide(color: AppColors.line.withValues(alpha: 0.8)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => ProductDetailScreen(slug: product.slug)),
             ),
-            const SizedBox(height: 8),
-            Text(product.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.inkStrong)),
-            const SizedBox(height: 3),
-            Row(
+            onHighlightChanged: (down) => setState(() => _pressed = down),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (product.averageRating != null && product.averageRating! > 0) ...[
-                  const Icon(Icons.star_rounded, size: 14, color: Color(0xFFF7B500)),
-                  const SizedBox(width: 2),
-                  Text(product.averageRating!.toStringAsFixed(1), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.bodyStrong)),
-                  const SizedBox(width: 6),
-                ],
-                Expanded(
-                  child: Text(
-                    product.category,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11, color: AppColors.muted),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 5),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                // Price and the struck-through original stack vertically:
-                // side by side they don't fit a half-width card once the
-                // amount runs to six digits and the old price got clipped
-                // to "$15".
-                Expanded(
+                Expanded(child: _buildImage(product)),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 11, 10, 10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (product.referencePrice > product.price)
-                        Text(
-                          formatPrice(product.referencePrice),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                letterSpacing: 1,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.muted,
+                              ),
+                            ),
+                          ),
+                          // `discount_label` from the API ("10% OFF"), only
+                          // when there is an original price to strike through.
+                          if (product.referencePrice > product.price && product.discountBadge != null)
+                            _DiscountPill(label: product.discountBadge!),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      // One line, ellipsized — keeps every card the same
+                      // height so price rows line up across the grid.
+                      SizedBox(
+                        height: 14.5 * 1.25,
+                        child: Text(
+                          product.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: AppColors.muted, fontSize: 11, decoration: TextDecoration.lineThrough),
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            height: 1.25,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: -0.1,
+                            color: AppColors.inkStrong,
+                          ),
                         ),
-                      Text(
-                        formatPrice(product.price),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: AppColors.sale, fontWeight: FontWeight.w800, fontSize: 14),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          // Old price struck through above the new one, so
+                          // the "-12%" pill has the price it came off. The
+                          // line is kept (empty) on full-price cards so price
+                          // rows still line up across the grid. Both shrink
+                          // rather than truncate — a six-digit price must
+                          // never read as "\$133,399....".
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(
+                                  height: 16,
+                                  child: product.referencePrice > product.price
+                                      ? FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            formatPrice(product.referencePrice),
+                                            maxLines: 1,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                              color: AppColors.muted,
+                                              decoration: TextDecoration.lineThrough,
+                                              decorationColor: AppColors.muted,
+                                            ),
+                                          ),
+                                        )
+                                      : null,
+                                ),
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    formatPrice(product.price),
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.3,
+                                      color: AppColors.inkStrong,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _buildAddButton(product),
+                        ],
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 6),
-                InkWell(
-                  onTap: product.inStock && !_adding ? _addToCart : null,
-                  borderRadius: BorderRadius.circular(999),
-                  child: Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: product.inStock ? AppColors.primary : AppColors.lineStrong,
-                      shape: BoxShape.circle,
-                    ),
-                    child: _adding
-                        ? const Padding(
-                            padding: EdgeInsets.all(7),
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Icon(Icons.add, color: Colors.white, size: 16),
-                  ),
-                ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
+
+  /// Edge-to-edge photo with the "New" badge top-left and the
+  /// wishlist heart top-right. Sold-out stock is washed out so it reads as
+  /// unavailable at a glance.
+  Widget _buildImage(Product product) {
+    // Only "New" gets a badge. A "Best Seller" pill was tried and dropped:
+    // nearly every product carries the flag, so it cluttered every photo
+    // without telling shoppers anything.
+    final badge = product.isNew
+        ? _Badge(label: 'New', background: AppColors.sale, foreground: Colors.white)
+        : null;
+    final fallback = Center(
+      child: Icon(Icons.image_outlined, size: 30, color: AppColors.lineStrong),
+    );
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ColoredBox(
+          color: AppColors.background,
+          child: product.primaryImage.isNotEmpty
+              ? LayoutBuilder(
+                  // Decode at the size it is drawn, not the 900px original:
+                  // sharper downscaling and far less memory while scrolling.
+                  builder: (context, constraints) => CachedNetworkImage(
+                    imageUrl: product.primaryImage,
+                    fit: BoxFit.cover,
+                    alignment: Alignment.center,
+                    filterQuality: FilterQuality.medium,
+                    memCacheWidth: constraints.maxWidth.isFinite
+                        ? (constraints.maxWidth * MediaQuery.devicePixelRatioOf(context)).round()
+                        : null,
+                    fadeInDuration: const Duration(milliseconds: 250),
+                    placeholder: (_, _) => fallback,
+                    errorWidget: (_, _, _) => fallback,
+                  ),
+                )
+              : fallback,
+        ),
+        if (!product.inStock) ColoredBox(color: AppColors.card.withValues(alpha: 0.45)),
+        if (badge != null) Positioned(top: 10, left: 10, child: badge),
+        if (!product.inStock)
+          Positioned(
+            bottom: 10,
+            left: 10,
+            child: _Badge(
+              label: 'Out of stock',
+              background: AppColors.inkStrong.withValues(alpha: 0.8),
+              foreground: AppColors.card,
+            ),
+          ),
+        Positioned(
+          top: 8,
+          right: 8,
+          child: Material(
+            color: AppColors.card,
+            shape: const CircleBorder(),
+            elevation: 0,
+            child: InkWell(
+              onTap: _busy ? null : _toggleWishlist,
+              customBorder: const CircleBorder(),
+              child: SizedBox(
+                width: 34,
+                height: 34,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  transitionBuilder: (child, animation) => ScaleTransition(
+                    scale: CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
+                    child: child,
+                  ),
+                  child: Icon(
+                    _wishlisted ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                    key: ValueKey(_wishlisted),
+                    size: 17,
+                    color: _wishlisted ? AppColors.sale : AppColors.inkStrong,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Grey "+" that turns into a brand-coloured ✓ for a moment after the
+  /// product lands in the cart.
+  Widget _buildAddButton(Product product) {
+    final enabled = product.inStock && !_adding;
+    final Widget icon;
+    if (_adding) {
+      icon = SizedBox(
+        key: const ValueKey('busy'),
+        width: 15,
+        height: 15,
+        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.inkStrong),
+      );
+    } else if (_justAdded) {
+      icon = const Icon(Icons.check_rounded, key: ValueKey('done'), size: 19, color: Colors.white);
+    } else {
+      icon = Icon(
+        Icons.add_rounded,
+        key: const ValueKey('add'),
+        size: 20,
+        color: product.inStock ? AppColors.inkStrong : AppColors.muted,
+      );
+    }
+    return Material(
+      color: Colors.transparent,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: enabled ? _addToCart : null,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: 36,
+          height: 36,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _justAdded
+                ? AppColors.primary
+                : product.inStock
+                    ? AppColors.line
+                    : AppColors.line.withValues(alpha: 0.5),
+          ),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
+            child: icon,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Small rounded label on the product photo ("New", "Out of stock").
+class _Badge extends StatelessWidget {
+  final String label;
+  final Color background;
+  final Color foreground;
+
+  const _Badge({required this.label, required this.background, required this.foreground});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 6, offset: const Offset(0, 2))],
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.1, color: foreground),
+      ),
+    );
+  }
+}
+
+/// Soft red "10% OFF" chip on the brand line.
+class _DiscountPill extends StatelessWidget {
+  final String label;
+  const _DiscountPill({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.sale.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.sale),
+      ),
+    );
+  }
+}
+
+/// Two-column grid for [ProductGridCard] where every tile is exactly its
+/// width plus [infoHeight] tall — so the (square) product photo is drawn
+/// square on any screen width, instead of being cropped by a fixed aspect
+/// ratio that only fits one phone.
+class ProductGridDelegate extends SliverGridDelegate {
+  final double infoHeight;
+  final double spacing;
+
+  const ProductGridDelegate({required this.infoHeight, this.spacing = 14});
+
+  /// Convenience for the common case: info height from the current text
+  /// scale.
+  factory ProductGridDelegate.of(BuildContext context) =>
+      ProductGridDelegate(infoHeight: ProductGridCard.infoHeightFor(context));
+
+  @override
+  SliverGridLayout getLayout(SliverConstraints constraints) {
+    final tileWidth = (constraints.crossAxisExtent - spacing) / 2;
+    final tileHeight = tileWidth + infoHeight;
+    return SliverGridRegularTileLayout(
+      crossAxisCount: 2,
+      mainAxisStride: tileHeight + spacing,
+      crossAxisStride: tileWidth + spacing,
+      childMainAxisExtent: tileHeight,
+      childCrossAxisExtent: tileWidth,
+      reverseCrossAxis: axisDirectionIsReversed(constraints.crossAxisDirection),
+    );
+  }
+
+  @override
+  bool shouldRelayout(ProductGridDelegate oldDelegate) =>
+      oldDelegate.infoHeight != infoHeight || oldDelegate.spacing != spacing;
 }

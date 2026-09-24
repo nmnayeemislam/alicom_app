@@ -47,13 +47,17 @@ class AuthState extends ChangeNotifier {
     required String phone,
     String? email,
     required String password,
+    required String passwordConfirmation,
+    String? referralCode,
   }) async {
     final result = await AuthService.instance.register(
+      referralCode: referralCode,
       name: name,
       countryIso: countryIso,
       phone: phone,
       email: email,
       password: password,
+      passwordConfirmation: passwordConfirmation,
     );
     user = result.user;
     notifyListeners();

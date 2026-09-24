@@ -175,19 +175,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _couponError = null;
     });
     try {
-      final productIds = CartState.instance.items
-          .map((item) => (item as Map)['product_id'] as int)
-          .toSet()
-          .toList();
       final response = await CommerceService.instance.checkCoupon(
         coupon: code,
-        productIds: productIds,
+        productIds: CartState.instance.couponProductIds,
       );
       final data = (response is Map ? response['data'] ?? response : {}) as Map;
       final eligible = data['eligible'] == true;
       if (!eligible) {
+        final message = response is Map ? response['message'] as String? : null;
         setState(() {
-          _couponError = 'Coupon is not eligible for this order.';
+          _couponError = message?.isNotEmpty == true ? message : 'Coupon is not eligible for this order.';
           _discountAmount = 0;
           _appliedCoupon = null;
         });

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DEBUG-ONLY override of the main source set's config.
+
+  Dev builds talk to `php artisan serve` over plain HTTP on whatever LAN IP
+  the router handed the dev machine, and that IP changes on every router
+  restart — so the debug build permits cleartext everywhere rather than
+  pinning an address that goes stale. Release builds still use the strict
+  config in `src/main/res/xml/`, which allows cleartext nowhere.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

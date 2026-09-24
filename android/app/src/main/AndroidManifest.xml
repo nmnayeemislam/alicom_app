@@ -1,12 +1,18 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
 
+    <!-- Predictive back is off: with it on, a back swipe that overlaps a
+         route transition or a hot restart trips Flutter's navigator
+         assertion '_userGesturesInProgress > 0' (TransitionRoute
+         ._handleDragEnd). Off, Android sends a plain back and routes pop
+         with the normal transition. Set explicitly because Android 16+
+         defaults it on for apps targeting SDK 36. -->
     <application
-        android:label="alicom_app"
+        android:label="Alicom"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:enableOnBackInvokedCallback="true">
+        android:enableOnBackInvokedCallback="false">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -28,6 +34,22 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Referral links https://<referralHost>/ref/{CODE} open the app
+                 (Android App Links). The host comes from build.gradle.kts
+                 (manifestPlaceholders). Verification needs the site to serve
+                 /.well-known/assetlinks.json for this package + signing key. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https"
+                      android:host="${referralHost}"
+                      android:pathPrefix="/ref/"/>
+            </intent-filter>
+            <!-- Links are handled by app_links (lib/core/deep_links.dart), not
+                 by Flutter's built-in deep linking, which would try to push a
+                 "/ref/CODE" route the app does not have. -->
+            <meta-data android:name="flutter_deeplinking_enabled" android:value="false"/>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

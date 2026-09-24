@@ -9,6 +9,10 @@ class AppUser {
   /// accepted); the account screen falls back to initials otherwise.
   final String? avatarUrl;
 
+  /// This customer's own referral code (`referral_code` on profile / login /
+  /// register). The full card — link, stats — comes from `GET /referral`.
+  final String? referralCode;
+
   AppUser({
     required this.id,
     this.name,
@@ -17,6 +21,7 @@ class AppUser {
     this.countryIso,
     this.address,
     this.avatarUrl,
+    this.referralCode,
   });
 
   /// First letters of up to two name words, e.g. "Demo User" → "DU".
@@ -34,5 +39,6 @@ class AppUser {
     countryIso: json['country_iso'] as String?,
     address: json['address'] as String?,
     avatarUrl: (json['profile_photo'] ?? json['avatar_url'] ?? json['avatar'] ?? json['profile_photo_url'] ?? json['image']) as String?,
+    referralCode: json['referral_code'] as String?,
   );
 }

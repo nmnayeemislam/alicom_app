@@ -27,6 +27,13 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // Host of referral links (https://<host>/ref/{CODE}) that open the app
+        // as Android App Links — the storefront's domain, i.e. the backend's
+        // APP_URL / REFERRAL_LINK_BASE. Override per build with
+        // `-P referralHost=shop.example.com` or in android/gradle.properties.
+        manifestPlaceholders["referralHost"] =
+            (project.findProperty("referralHost") as String?) ?: "uat-alicom.razinsoft.com"
     }
 
     buildTypes {

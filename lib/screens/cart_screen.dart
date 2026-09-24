@@ -15,7 +15,11 @@ import 'checkout_screen.dart';
 /// (when the API sends one), unit price and a ⊖ qty ⊕ stepper; then a promo
 /// code row, a "Bill Details" summary and a sticky Checkout button.
 class CartScreen extends StatefulWidget {
-  const CartScreen({super.key});
+  /// Pre-fills the promo field and applies it once the cart has loaded —
+  /// the "Use now" path from a redeemed points coupon.
+  final String? initialCoupon;
+
+  const CartScreen({super.key, this.initialCoupon});
 
   @override
   State<CartScreen> createState() => _CartScreenState();
@@ -31,9 +35,16 @@ class _CartScreenState extends State<CartScreen> {
   @override
   void initState() {
     super.initState();
+    final coupon = widget.initialCoupon?.trim();
+    if (coupon != null && coupon.isNotEmpty) _promoController.text = coupon;
     // Kick the refresh off after the first frame: CartState notifies
     // synchronously and this route is still being built when initState runs.
-    WidgetsBinding.instance.addPostFrameCallback((_) => CartState.instance.refresh());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await CartState.instance.refresh();
+      // Apply against the real cart, so the backend's own verdict (minimum
+      // order, owner-only, expired…) is what the shopper sees.
+      if (mounted && _promoController.text.trim().isNotEmpty) _applyPromo();
+    });
   }
 
   @override
@@ -58,15 +69,17 @@ class _CartScreenState extends State<CartScreen> {
       _promoError = null;
     });
     try {
-      final productIds = CartState.instance.items
-          .map((item) => (item as Map)['product_id'] as int)
-          .toSet()
-          .toList();
+      final productIds = CartState.instance.couponProductIds;
+      if (productIds.isEmpty) {
+        setState(() => _promoError = 'Add items to your cart to use this code.');
+        return;
+      }
       final response = await CommerceService.instance.checkCoupon(coupon: code, productIds: productIds);
       final data = (response is Map ? response['data'] ?? response : {}) as Map;
       if (data['eligible'] != true) {
+        final message = response is Map ? response['message'] as String? : null;
         setState(() {
-          _promoError = 'This code is not eligible for your cart.';
+          _promoError = message?.isNotEmpty == true ? message : 'This code is not eligible for your cart.';
           _appliedPromo = null;
           _discount = 0;
         });

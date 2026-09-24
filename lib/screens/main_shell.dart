@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../core/deep_links.dart';
 import '../theme/app_theme.dart';
 import 'account_screen.dart';
+import 'categories_screen.dart';
 import 'home_screen.dart';
 import 'orders_screen.dart';
-import 'products_screen.dart';
 import 'wishlist_screen.dart';
 
 /// Mirrors the reference mock's bottom nav: Home / Categories / Wishlist /
@@ -13,6 +14,14 @@ import 'wishlist_screen.dart';
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
+  /// Index of the Profile tab in the bottom nav.
+  static const profileTab = 4;
+
+  /// Switches the bottom-nav tab from inside one of the tab screens (e.g.
+  /// Home's avatar → Profile). No-op outside the shell.
+  static void selectTab(BuildContext context, int index) =>
+      context.findAncestorStateOfType<_MainShellState>()?._select(index);
+
   @override
   State<MainShell> createState() => _MainShellState();
 }
@@ -20,9 +29,21 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _index = 0;
 
+  void _select(int index) {
+    if (index != _index) setState(() => _index = index);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // A /ref/{CODE} link that opened the app is acted on now that the
+    // shell (and its navigator) is on screen.
+    WidgetsBinding.instance.addPostFrameCallback((_) => DeepLinks.instance.markShellReady());
+  }
+
   final _screens = const [
     HomeScreen(),
-    ProductsScreen(),
+    CategoriesScreen(),
     WishlistScreen(),
     OrdersScreen(),
     AccountScreen(),

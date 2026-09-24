@@ -19,6 +19,27 @@ class Product {
   final bool isWishlisted;
   final double? averageRating;
   final List<String> tags;
+  final String? categorySlug;
+  final String? brandName;
+  final String? brandSlug;
+
+  /// Server-rendered badge like "10% OFF" — already accounts for
+  /// percentage vs fixed discounts, so prefer it over recomputing.
+  final String? discountLabel;
+
+  /// The API's own `in_stock` verdict. `null` on payloads that omit it
+  /// (wishlist/cart lines), where [inStock] falls back to [stock].
+  final bool? inStockFlag;
+
+  final bool isNew;
+  final bool isFeature;
+  final bool isBestSeller;
+
+  /// Long description — detail payload only; list cards send
+  /// `short_description` instead.
+  final String? description;
+  final String? descriptionHtml;
+  final int? totalReviews;
 
   Product({
     this.id,
@@ -36,6 +57,17 @@ class Product {
     this.isWishlisted = false,
     this.averageRating,
     this.tags = const [],
+    this.categorySlug,
+    this.brandName,
+    this.brandSlug,
+    this.discountLabel,
+    this.inStockFlag,
+    this.isNew = false,
+    this.isFeature = false,
+    this.isBestSeller = false,
+    this.description,
+    this.descriptionHtml,
+    this.totalReviews,
   });
 
   String get primaryImage => images.isNotEmpty ? images.first : '';
@@ -43,12 +75,28 @@ class Product {
   double get referencePrice =>
       (originalPrice != null && originalPrice! > price) ? originalPrice! : price;
 
+  /// Saving as a whole percentage, derived from the prices rather than from
+  /// [discountType] — a fixed-amount discount is still a percentage off, and
+  /// gating on the type left those products showing a struck-through price
+  /// with no badge next to it.
   int get discountPercentage {
-    if (discountType != 'percentage' || referencePrice <= price) return 0;
+    if (referencePrice <= price) return 0;
     return (((referencePrice - price) / referencePrice) * 100).round();
   }
 
-  bool get inStock => stock == null || stock! > 0;
+  /// The server's own badge text ("10% OFF") when it sent one, else a
+  /// percentage worked out from the prices.
+  String? get discountBadge {
+    if (discountLabel != null && discountLabel!.trim().isNotEmpty) {
+      return discountLabel!.trim();
+    }
+    return discountPercentage > 0 ? '$discountPercentage% OFF' : null;
+  }
+
+  /// Trust the server's own flag when it sent one — a pre-order product can
+  /// be buyable at `stock_quantity == 0`, so counting units is only a
+  /// fallback for payloads that leave `in_stock` out.
+  bool get inStock => inStockFlag ?? (stock == null || stock! > 0);
 
   /// Same product with a different wishlist flag — used when the wishlist
   /// toggle's response, not the listing payload, is the authority.
@@ -68,6 +116,17 @@ class Product {
         isWishlisted: wishlisted,
         averageRating: averageRating,
         tags: tags,
+        categorySlug: categorySlug,
+        brandName: brandName,
+        brandSlug: brandSlug,
+        discountLabel: discountLabel,
+        inStockFlag: inStockFlag,
+        isNew: isNew,
+        isFeature: isFeature,
+        isBestSeller: isBestSeller,
+        description: description,
+        descriptionHtml: descriptionHtml,
+        totalReviews: totalReviews,
       );
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -104,7 +163,30 @@ class Product {
           json['is_wishlisted'] == '1',
       averageRating: _toDouble(json['average_rating']),
       tags: tags,
+      categorySlug: json['category_slug'] as String?,
+      brandName: json['brand_name'] as String?,
+      brandSlug: json['brand_slug'] as String?,
+      discountLabel: json['discount_label'] as String?,
+      inStockFlag: _toBool(json['in_stock']),
+      isNew: _toBool(json['is_new']) ?? false,
+      isFeature: _toBool(json['is_feature']) ?? false,
+      isBestSeller: _toBool(json['is_best_seller']) ?? false,
+      description: json['description'] as String?,
+      descriptionHtml: json['description_html'] as String?,
+      totalReviews: _toInt(json['total_reviews']),
     );
+  }
+
+  /// Laravel serializes booleans as `true`, `1` or `"1"` depending on the
+  /// cast, so accept all three rather than only the JSON boolean.
+  static bool? _toBool(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    final text = value.toString().toLowerCase();
+    if (text == 'true' || text == '1') return true;
+    if (text == 'false' || text == '0') return false;
+    return null;
   }
 
   static int? _toInt(dynamic value) {

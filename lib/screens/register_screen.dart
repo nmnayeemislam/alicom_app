@@ -5,8 +5,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../core/api_exception.dart';
 import '../services/auth_service.dart';
 import '../state/auth_state.dart';
+import '../state/referral_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/auth_header.dart';
+import '../widgets/referral_code_field.dart';
 
 /// Matches the login screen's layout: primary-color hero + rounded sheet
 /// with a Login/Register tab pill (Register active here; Login pops back).
@@ -17,19 +19,37 @@ class RegisterScreen extends StatefulWidget {
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
+/// Fields that render their own server error; anything else goes in the
+/// banner.
+const _shownFields = {'name', 'country_iso', 'phone', 'email', 'password', 'password_confirmation', 'referral_code'};
+
+/// Pre-selected in the country picker when the API offers it.
+const _defaultCountryIso = 'BD';
+
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmController = TextEditingController();
+
+  /// Pre-filled from a /ref/{CODE} deep link (parked in ReferralState) or
+  /// a scanned QR.
+  final _referralController = TextEditingController(text: ReferralState.instance.pendingCode ?? '');
   bool _isSubmitting = false;
   String? _error;
   bool _obscurePassword = true;
+  bool _obscureConfirm = true;
 
   bool _isLoadingCountries = true;
+  bool _countriesFailed = false;
   List<Map> _countries = [];
   String? _selectedCountryIso;
+
+  /// Per-field messages from a 422 (`errors: {phone: [...]}`), shown under
+  /// the matching input rather than squashed into one banner line.
+  Map<String, String> _fieldErrors = {};
 
   @override
   void initState() {
@@ -37,18 +57,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _loadCountries();
   }
 
+  /// `country_iso` is required by the backend, so without this list the
+  /// form cannot be submitted. A failed load used to leave no dropdown and
+  /// no way back — Register just said "select your country" forever — so it
+  /// now shows a retry, and [_submit] retries once on its own too.
   Future<void> _loadCountries() async {
     try {
       final countries = await AuthService.instance.countries();
+      if (!mounted) return;
       setState(() {
         _countries = countries.map((e) => e as Map).toList();
-        _selectedCountryIso = _countries.isNotEmpty ? _countries.first['iso'] as String : null;
+        _selectedCountryIso ??= _countries.any((c) => c['iso'] == _defaultCountryIso)
+            ? _defaultCountryIso
+            : (_countries.isNotEmpty ? _countries.first['iso'] as String : null);
       });
     } catch (_) {
-      // Fall back to a manual entry if the list can't be loaded.
+      if (mounted) setState(() => _countriesFailed = true);
     } finally {
       if (mounted) setState(() => _isLoadingCountries = false);
     }
+  }
+
+  Future<void> _retryCountries() {
+    setState(() {
+      _isLoadingCountries = true;
+      _countriesFailed = false;
+    });
+    return _loadCountries();
   }
 
   @override
@@ -57,13 +92,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
+    _confirmController.dispose();
+    _referralController.dispose();
     super.dispose();
   }
 
+  /// Drops a field's server error as soon as the user edits it, so a fixed
+  /// value stops showing the old complaint before the next submit.
+  void _clearFieldError(String field) {
+    if (!_fieldErrors.containsKey(field)) return;
+    setState(() => _fieldErrors = {..._fieldErrors}..remove(field));
+  }
+
   Future<void> _submit() async {
+    setState(() => _fieldErrors = {});
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedCountryIso == null && !_isLoadingCountries) await _retryCountries();
     if (_selectedCountryIso == null) {
-      setState(() => _error = 'Please select your country.');
+      setState(() => _error = 'Could not load the country list. Check your connection and try again.');
       return;
     }
     setState(() {
@@ -77,7 +123,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         phone: _phoneController.text.trim(),
         email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
         password: _passwordController.text,
+        passwordConfirmation: _confirmController.text,
+        referralCode: _referralController.text.trim().isEmpty ? null : _referralController.text.trim().toUpperCase(),
       );
+      // The parked deep-link code has now been used (or deliberately
+      // cleared) — don't route with it again after sign-in.
+      ReferralState.instance.takePendingCode();
       if (mounted) {
         // Registration also signs the user in, so leave the whole auth flow
         // (Register + Login) rather than dropping back onto the login form.
@@ -86,7 +137,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
         if (nav.canPop()) nav.pop();
       }
     } on ApiException catch (e) {
-      setState(() => _error = e.message);
+      final fields = {
+        for (final entry in (e.fieldErrors ?? const <String, List<String>>{}).entries)
+          if (entry.value.isNotEmpty) entry.key: entry.value.first,
+      };
+      setState(() {
+        _fieldErrors = fields;
+        // Every field error already shows under its input; the banner is
+        // for anything else (throttling, server errors, no connection).
+        _error = fields.keys.any(_shownFields.contains) ? null : e.message;
+      });
+      _formKey.currentState!.validate();
     } catch (e) {
       setState(() => _error = 'Something went wrong. Please try again.');
     } finally {
@@ -248,12 +309,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         children: [
           TextFormField(
             controller: _nameController,
+            onChanged: (_) => _clearFieldError('name'),
             decoration: const InputDecoration(
               labelText: 'Full name',
               prefixIcon: Icon(Icons.person_outline, size: 20),
             ),
             validator: (value) =>
-                (value == null || value.isEmpty) ? 'Enter your name' : null,
+                (value == null || value.isEmpty) ? 'Enter your name' : _fieldErrors['name'],
           ),
           const SizedBox(height: 14),
           if (_isLoadingCountries)
@@ -275,30 +337,55 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ))
                   .toList(),
               onChanged: (value) => setState(() => _selectedCountryIso = value),
+              validator: (_) => _fieldErrors['country_iso'],
+            )
+          else if (_countriesFailed)
+            Row(
+              children: [
+                Icon(Icons.error_outline, size: 18, color: AppColors.sale),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Could not load countries.',
+                    style: TextStyle(color: AppColors.body, fontSize: 13),
+                  ),
+                ),
+                TextButton(onPressed: _retryCountries, child: const Text('Retry')),
+              ],
             ),
           const SizedBox(height: 14),
           TextFormField(
             controller: _phoneController,
+            onChanged: (_) => _clearFieldError('phone'),
             keyboardType: TextInputType.phone,
             decoration: const InputDecoration(
               labelText: 'Phone',
               prefixIcon: Icon(Icons.phone_outlined, size: 20),
             ),
             validator: (value) =>
-                (value == null || value.isEmpty) ? 'Enter your phone number' : null,
+                (value == null || value.isEmpty) ? 'Enter your phone number' : _fieldErrors['phone'],
           ),
           const SizedBox(height: 14),
           TextFormField(
             controller: _emailController,
+            onChanged: (_) => _clearFieldError('email'),
             keyboardType: TextInputType.emailAddress,
             decoration: const InputDecoration(
               labelText: 'E-mail (optional)',
               prefixIcon: Icon(Icons.mail_outline, size: 20),
             ),
+            validator: (value) {
+              final email = value?.trim() ?? '';
+              if (email.isNotEmpty && !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+                return 'Enter a valid e-mail address';
+              }
+              return _fieldErrors['email'];
+            },
           ),
           const SizedBox(height: 14),
           TextFormField(
             controller: _passwordController,
+            onChanged: (_) => _clearFieldError('password'),
             obscureText: _obscurePassword,
             decoration: InputDecoration(
               labelText: 'Password',
@@ -310,7 +397,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             validator: (value) => (value == null || value.length < 8)
                 ? 'Password must be at least 8 characters'
-                : null,
+                : _fieldErrors['password'],
+          ),
+          const SizedBox(height: 14),
+          TextFormField(
+            controller: _confirmController,
+            onChanged: (_) => _clearFieldError('password_confirmation'),
+            obscureText: _obscureConfirm,
+            decoration: InputDecoration(
+              labelText: 'Confirm password',
+              prefixIcon: const Icon(Icons.lock_outline, size: 20),
+              suffixIcon: IconButton(
+                icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility, size: 20),
+                onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+              ),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) return 'Confirm your password';
+              if (value != _passwordController.text) return 'Passwords do not match';
+              return _fieldErrors['password_confirmation'];
+            },
+          ),
+          const SizedBox(height: 14),
+          // Optional. A 422 on referral_code creates no account, so the user
+          // can fix or clear the code and submit again.
+          ReferralCodeField(
+            controller: _referralController,
+            serverError: _fieldErrors['referral_code'],
+            onEdited: () => _clearFieldError('referral_code'),
           ),
           if (_error != null) ...[
             const SizedBox(height: 14),

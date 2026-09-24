@@ -1,0 +1,5 @@
+// Host of referral links (https://<host>/ref/{CODE}) that open the app as
+// iOS Universal Links — the storefront's domain (the backend's APP_URL /
+// REFERRAL_LINK_BASE). Used by Runner/Runner.entitlements. Must match
+// android/app/build.gradle.kts `referralHost`.
+REFERRAL_HOST = uat-alicom.razinsoft.com

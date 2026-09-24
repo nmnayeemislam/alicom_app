@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../core/money.dart';
+import '../models/category.dart';
 import '../models/product.dart';
 import '../services/catalog_service.dart';
 import '../theme/app_theme.dart';
@@ -24,6 +26,15 @@ class ProductsScreen extends StatefulWidget {
   State<ProductsScreen> createState() => _ProductsScreenState();
 }
 
+/// "Recommended" is the absence of `sort` — the admin's own product order —
+/// so it is not in this map; the sheet lists it first as the default.
+const _recommendedLabel = 'Recommended';
+
+/// Radio value for "no choice" (All Categories / Recommended) in the pick
+/// sheets. Not `null`: a dismissed sheet also completes with `null`, and
+/// that must leave the current choice alone rather than clear it.
+const _noneValue = '';
+
 const _sortOptions = <String, String>{
   'newest': 'Newest',
   'price_low': 'Price: Low to High',
@@ -42,15 +53,43 @@ class _ProductsScreenState extends State<ProductsScreen> {
   List<Product> _products = [];
   bool _searching = false;
 
-  List<Map> _categories = [];
+  /// `/categories` rebuilt into a tree (parents the endpoint omits are
+  /// synthesized), for the child chips and the grouped category picker.
+  List<Category> _tree = [];
+
+  /// The category this screen is "about" — its name is the AppBar title and
+  /// its children are the chips. [_selectedCategorySlug] is either this or
+  /// one of those children. A parent slug returns all of its descendants'
+  /// products, so "All" is simply this slug.
+  late String? _rootSlug = widget.initialCategorySlug;
   List<Map> _brands = [];
   late String? _selectedCategorySlug = widget.initialCategorySlug;
   final Set<String> _selectedBrandSlugs = {};
   String? _selectedSort;
 
+  /// `in_stock=1`, `min_price`, `max_price` — set from the Filter sheet.
+  bool _inStockOnly = false;
+  double? _minPrice;
+  double? _maxPrice;
+
+  /// Bumped by every fresh [_load], so a next-page response that lands
+  /// after the filters changed (or a refresh) is dropped, not appended to
+  /// the new results.
+  int _generation = 0;
+
   int _page = 1;
   bool _hasMore = false;
   bool _isLoadingMore = false;
+
+  /// Set when a next-page request fails, so scrolling doesn't retry it on
+  /// every frame; the "Load more" button clears it.
+  bool _autoLoadPaused = false;
+
+  /// `pagination.total` for the filters in force — the real match count,
+  /// not how many rows happen to be loaded. Shown in the heading badge so a
+  /// filter that silently did nothing (Laravel ignores an unknown query key
+  /// rather than erroring) is visible instead of looking like it worked.
+  int? _total;
 
   @override
   void initState() {
@@ -68,15 +107,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   Future<void> _loadFilterOptions() async {
     try {
-      final results = await Future.wait([
-        CatalogService.instance.categories(),
-        CatalogService.instance.brands(),
-      ]);
-      final categories = _extractList(results[0]);
-      final brands = _extractList(results[1]);
+      // Both chips fill from independent endpoints — fetch them at once
+      // rather than paying two round trips in sequence.
+      final categoriesFuture = CatalogService.instance.categoryList();
+      final brandsFuture = CatalogService.instance.brands();
+      final categories = await categoriesFuture;
+      final brands = _extractList(await brandsFuture);
       if (mounted) {
         setState(() {
-          _categories = categories.whereType<Map>().toList();
+          _tree = Category.buildTree(categories);
           _brands = brands.whereType<Map>().toList();
         });
       }
@@ -94,60 +133,80 @@ class _ProductsScreenState extends State<ProductsScreen> {
       // itself carries `[]`, which is what ProductController expects.
       if (_selectedBrandSlugs.isNotEmpty) 'brand_slug[]': _selectedBrandSlugs.toList(),
       'sort': ?_selectedSort,
+      if (_inStockOnly) 'in_stock': 1,
+      if (_minPrice != null) 'min_price': _minPrice,
+      if (_maxPrice != null) 'max_price': _maxPrice,
     };
   }
 
   Future<void> _load({String? query}) async {
+    final generation = ++_generation;
     setState(() {
       _isLoading = true;
       _error = null;
+      _isLoadingMore = false;
     });
     try {
       _page = 1;
+      _autoLoadPaused = false;
       final filters = {..._buildFilters(), 'page': _page};
-      final response = query != null && query.isNotEmpty
-          ? await CatalogService.instance.search(query, filters: filters)
-          : await CatalogService.instance.products(filters: filters);
-      final list = _extractList(response);
-      _products = list
-          .whereType<Map>()
-          .map((e) => Product.fromJson(e.cast<String, dynamic>()))
-          .toList();
-      _hasMore = _extractHasMore(response);
+      final page = query != null && query.isNotEmpty
+          ? await CatalogService.instance.searchPage(query, filters: filters)
+          : await CatalogService.instance.productPage(filters: filters);
+      // A newer load (filter change, refresh, next keystroke) owns the grid.
+      if (generation != _generation) return;
+      _products = page.products;
+      _hasMore = page.pagination.hasMorePages;
+      _total = page.pagination.total;
     } catch (e) {
+      if (generation != _generation) return;
       _error = e.toString();
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted && generation == _generation) setState(() => _isLoading = false);
     }
   }
 
+  /// Infinite scroll: fetch the next page once the user is within a couple
+  /// of card rows of the end, for as long as `has_more_pages` says so.
+  bool _onScroll(ScrollNotification notification) {
+    if (notification.metrics.axis == Axis.vertical &&
+        notification.metrics.extentAfter < 600 &&
+        !_autoLoadPaused) {
+      _loadMore();
+    }
+    return false;
+  }
+
+  /// One page at a time: the `_isLoadingMore` guard means page N+1 is
+  /// never requested twice concurrently, however many scroll events fire.
   Future<void> _loadMore() async {
-    if (_isLoadingMore || !_hasMore) return;
-    setState(() => _isLoadingMore = true);
+    if (_isLoading || _isLoadingMore || !_hasMore) return;
+    final generation = _generation;
+    setState(() {
+      _isLoadingMore = true;
+      _autoLoadPaused = false;
+    });
     try {
       final nextPage = _page + 1;
       final query = _searchController.text;
       final filters = {..._buildFilters(), 'page': nextPage};
-      final response = query.isNotEmpty
-          ? await CatalogService.instance.search(query, filters: filters)
-          : await CatalogService.instance.products(filters: filters);
-      final list = _extractList(response);
-      final more = list
-          .whereType<Map>()
-          .map((e) => Product.fromJson(e.cast<String, dynamic>()))
-          .toList();
-      if (mounted) {
+      final page = query.isNotEmpty
+          ? await CatalogService.instance.searchPage(query, filters: filters)
+          : await CatalogService.instance.productPage(filters: filters);
+      if (mounted && generation == _generation) {
         setState(() {
-          _products = [..._products, ...more];
+          _products = [..._products, ...page.products];
           _page = nextPage;
-          _hasMore = _extractHasMore(response);
+          _hasMore = page.pagination.hasMorePages;
+          _total = page.pagination.total;
         });
       }
     } catch (_) {
       // Leave the already-loaded products on screen; the button just stays
       // tappable to retry.
+      if (generation == _generation) _autoLoadPaused = true;
     } finally {
-      if (mounted) setState(() => _isLoadingMore = false);
+      if (mounted && generation == _generation) setState(() => _isLoadingMore = false);
     }
   }
 
@@ -163,58 +222,93 @@ class _ProductsScreenState extends State<ProductsScreen> {
     return [];
   }
 
-  bool _extractHasMore(dynamic response) {
-    if (response is! Map) return false;
-    final data = response['data'];
-    if (data is! Map) return false;
-    final pagination = data['pagination'];
-    if (pagination is! Map) return false;
-    return pagination['has_more_pages'] == true;
-  }
-
   void _onSearchChanged(String value) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 400), () => _load(query: value));
   }
 
+  /// Every category, parents included, indented under their parent. A
+  /// parent's slug returns all of its sub-categories' products combined.
   Future<void> _openCategorySheet() async {
+    Iterable<Widget> tiles(BuildContext sheetContext, List<Category> nodes, int depth) sync* {
+      for (final cat in nodes) {
+        final count = cat.totalProductsDeep;
+        yield RadioListTile<String?>(
+          value: cat.slug,
+          // ignore: deprecated_member_use
+          groupValue: _selectedCategorySlug,
+          // ignore: deprecated_member_use
+          onChanged: (v) => Navigator.of(sheetContext).pop(v),
+          contentPadding: EdgeInsets.only(left: 12 + depth * 20.0, right: 16),
+          title: Text(
+            cat.name,
+            style: TextStyle(fontWeight: depth == 0 ? FontWeight.w700 : FontWeight.w500),
+          ),
+          subtitle: Text(
+            '$count ${count == 1 ? 'product' : 'products'}',
+            style: TextStyle(fontSize: 12, color: AppColors.muted),
+          ),
+        );
+        yield* tiles(sheetContext, cat.children, depth + 1);
+      }
+    }
+
     final selected = await showModalBottomSheet<String?>(
       context: context,
       backgroundColor: AppColors.card,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (sheetContext) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
-              child: Text('Category', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-            ),
-            RadioListTile<String?>(
-              value: null,
-              // ignore: deprecated_member_use
-              groupValue: _selectedCategorySlug,
-              // ignore: deprecated_member_use
-              onChanged: (v) => Navigator.of(sheetContext).pop(v),
-              title: const Text('All Categories'),
-            ),
-            for (final cat in _categories)
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(sheetContext).size.height * 0.75),
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
+                child: Text('Category', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              ),
               RadioListTile<String?>(
-                value: cat['slug'] as String?,
+                value: _noneValue,
                 // ignore: deprecated_member_use
-                groupValue: _selectedCategorySlug,
+                groupValue: _selectedCategorySlug ?? _noneValue,
                 // ignore: deprecated_member_use
                 onChanged: (v) => Navigator.of(sheetContext).pop(v),
-                title: Text((cat['name'] ?? '') as String),
+                title: const Text('All Categories', style: TextStyle(fontWeight: FontWeight.w700)),
               ),
-            const SizedBox(height: 8),
-          ],
+              ...tiles(sheetContext, _tree, 0),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
-    if (selected == _selectedCategorySlug) return;
-    setState(() => _selectedCategorySlug = selected);
+    if (selected == null) return; // dismissed
+    final slug = selected == _noneValue ? null : selected;
+    if (slug == _selectedCategorySlug) return;
+    setState(() {
+      _rootSlug = slug;
+      _selectedCategorySlug = slug;
+    });
     _load(query: _searchController.text);
+  }
+
+  /// Chip under the filter row: "All" is [_rootSlug] itself, the rest are
+  /// its direct children.
+  void _selectChildChip(String? slug) {
+    if (slug == _selectedCategorySlug) return;
+    setState(() => _selectedCategorySlug = slug);
+    _load(query: _searchController.text);
+  }
+
+  Category? _findCategory(String? slug, [List<Category>? nodes]) {
+    if (slug == null) return null;
+    for (final node in nodes ?? _tree) {
+      if (node.slug == slug) return node;
+      final found = _findCategory(slug, node.children);
+      if (found != null) return found;
+    }
+    return null;
   }
 
   Future<void> _openBrandSheet() async {
@@ -290,11 +384,20 @@ class _ProductsScreenState extends State<ProductsScreen> {
               padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
               child: Text('Sort By', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             ),
+            // No `sort` sent: products stay in the order the admin set.
+            RadioListTile<String?>(
+              value: _noneValue,
+              // ignore: deprecated_member_use
+              groupValue: _selectedSort ?? _noneValue,
+              // ignore: deprecated_member_use
+              onChanged: (v) => Navigator.of(sheetContext).pop(v),
+              title: const Text(_recommendedLabel),
+            ),
             for (final entry in _sortOptions.entries)
               RadioListTile<String?>(
                 value: entry.key,
                 // ignore: deprecated_member_use
-                groupValue: _selectedSort,
+                groupValue: _selectedSort ?? _noneValue,
                 // ignore: deprecated_member_use
                 onChanged: (v) => Navigator.of(sheetContext).pop(v),
                 title: Text(entry.value),
@@ -304,33 +407,66 @@ class _ProductsScreenState extends State<ProductsScreen> {
         ),
       ),
     );
-    if (selected == _selectedSort) return;
-    setState(() => _selectedSort = selected);
+    if (selected == null) return; // dismissed
+    final sort = selected == _noneValue ? null : selected;
+    if (sort == _selectedSort) return;
+    setState(() => _selectedSort = sort);
     _load(query: _searchController.text);
   }
 
-  bool get _hasActiveFilters =>
-      _selectedCategorySlug != null || _selectedBrandSlugs.isNotEmpty || _selectedSort != null;
-
-  void _clearFilters() {
+  /// In-stock toggle and a price range, from [_FilterSheet].
+  Future<void> _openFilterSheet() async {
+    final result = await showModalBottomSheet<_FilterResult>(
+      context: context,
+      backgroundColor: AppColors.card,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => _FilterSheet(
+        initial: _FilterResult(inStockOnly: _inStockOnly, minPrice: _minPrice, maxPrice: _maxPrice),
+      ),
+    );
+    if (result == null) return;
     setState(() {
-      _selectedCategorySlug = null;
-      _selectedBrandSlugs.clear();
-      _selectedSort = null;
+      _inStockOnly = result.inStockOnly;
+      _minPrice = result.minPrice;
+      _maxPrice = result.maxPrice;
     });
     _load(query: _searchController.text);
   }
 
-  String? get _selectedCategoryName {
-    if (_selectedCategorySlug == null) return null;
-    final match = _categories.firstWhere(
-      (c) => c['slug'] == _selectedCategorySlug,
-      orElse: () => const {},
-    );
-    final name = match['name'] as String?;
-    if (name != null) return name;
+  bool get _hasPriceOrStockFilter => _inStockOnly || _minPrice != null || _maxPrice != null;
+
+  bool get _hasActiveFilters =>
+      _selectedCategorySlug != null ||
+      _selectedBrandSlugs.isNotEmpty ||
+      _selectedSort != null ||
+      _hasPriceOrStockFilter;
+
+  void _clearFilters() {
+    setState(() {
+      _rootSlug = null;
+      _selectedCategorySlug = null;
+      _selectedBrandSlugs.clear();
+      _selectedSort = null;
+      _inStockOnly = false;
+      _minPrice = null;
+      _maxPrice = null;
+    });
+    _load(query: _searchController.text);
+  }
+
+  String? get _selectedCategoryName => _categoryName(_selectedCategorySlug);
+
+  /// Title for the AppBar: the category the screen was opened for (or last
+  /// picked), not whichever child chip is active.
+  String? get _rootCategoryName => _categoryName(_rootSlug);
+
+  String? _categoryName(String? slug) {
+    if (slug == null) return null;
+    final node = _findCategory(slug);
+    if (node != null) return node.name;
     // Categories may not have loaded yet; use the name the caller passed.
-    return _selectedCategorySlug == widget.initialCategorySlug ? widget.initialCategoryName : null;
+    return slug == widget.initialCategorySlug ? widget.initialCategoryName : null;
   }
 
   @override
@@ -359,13 +495,22 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   isDense: true,
                 ),
               )
-            : Text(
-                'ALICOM',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      letterSpacing: 3,
-                    ),
-                textAlign: TextAlign.center,
-              ),
+            // The category's name when browsing one; the store name
+            // otherwise.
+            : _rootCategoryName != null
+                ? Text(
+                    _rootCategoryName!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  )
+                : Text(
+                    'ALICOM',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          letterSpacing: 3,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
         centerTitle: !_searching,
         actions: [
           IconButton(
@@ -399,60 +544,64 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 message: _error!,
                 onRetry: () => _load(query: _searchController.text),
               )
-            : CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                slivers: [
-                  SliverToBoxAdapter(child: _buildHeading()),
-                  SliverToBoxAdapter(child: _buildFilterRow()),
-                  _products.isEmpty
-                      ? const SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: EmptyView(
-                            icon: Icons.search_off,
-                            message: 'No products found.',
-                          ),
-                        )
-                      : SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                          sliver: SliverGrid(
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              mainAxisSpacing: 14,
-                              crossAxisSpacing: 14,
-                              childAspectRatio: 0.68,
+            : NotificationListener<ScrollNotification>(
+                onNotification: _onScroll,
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverToBoxAdapter(child: _buildHeading()),
+                    SliverToBoxAdapter(child: _buildFilterRow()),
+                    SliverToBoxAdapter(child: _buildChildChips()),
+                    _products.isEmpty
+                        ? SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: EmptyView(
+                              icon: Icons.search_off,
+                              message: _selectedCategorySlug != null &&
+                                      _searchController.text.trim().isEmpty &&
+                                      !_hasPriceOrStockFilter &&
+                                      _selectedBrandSlugs.isEmpty
+                                  ? 'No products in this category yet'
+                                  : 'No products found.',
                             ),
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) => ProductGridCard(product: _products[index]),
-                              childCount: _products.length,
-                            ),
-                          ),
-                        ),
-                  if (_products.isNotEmpty)
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-                        child: _hasMore
-                            ? OutlinedButton.icon(
-                                onPressed: _isLoadingMore ? null : _loadMore,
-                                icon: _isLoadingMore
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(strokeWidth: 2),
-                                      )
-                                    : const Icon(Icons.expand_more_rounded, size: 18),
-                                label: Text(_isLoadingMore ? 'Loading…' : 'Load more products'),
-                                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                              )
-                            : Center(
-                                child: Text(
-                                  "You've seen everything.",
-                                  style: TextStyle(color: AppColors.muted, fontSize: 12.5),
-                                ),
+                          )
+                        : SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                            sliver: SliverGrid(
+                              gridDelegate: ProductGridDelegate.of(context),
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) => ProductGridCard(product: _products[index]),
+                                childCount: _products.length,
                               ),
+                            ),
+                          ),
+                    if (_products.isNotEmpty)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                          child: _hasMore
+                              ? OutlinedButton.icon(
+                                  onPressed: _isLoadingMore ? null : _loadMore,
+                                  icon: _isLoadingMore
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                        )
+                                      : const Icon(Icons.expand_more_rounded, size: 18),
+                                  label: Text(_isLoadingMore ? 'Loading…' : 'Load more products'),
+                                  style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                                )
+                              : Center(
+                                  child: Text(
+                                    "You've seen everything.",
+                                    style: TextStyle(color: AppColors.muted, fontSize: 12.5),
+                                  ),
+                                ),
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
       ),
     );
@@ -477,7 +626,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
       subtitle = 'Browse the full catalogue';
     }
 
-    final count = _hasMore ? '${_products.length}+' : '${_products.length}';
+    // The server's match count for the filters in force, not how many rows
+    // happen to be loaded — a `category_slug` that narrowed nothing shows up
+    // here as the full catalogue total instead of looking like it worked.
+    final count = _total ?? _products.length;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
@@ -518,7 +670,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
-              '$count items',
+              '$count item${count == 1 ? '' : 's'}',
               style: TextStyle(
                 color: AppColors.primary,
                 fontSize: 12,
@@ -531,10 +683,51 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
+  /// "All" + the root category's direct children, when it has any.
+  Widget _buildChildChips() {
+    final root = _findCategory(_rootSlug);
+    if (root == null || !root.hasChildren) return const SizedBox(height: 8);
+
+    Widget chip(String label, String slug) {
+      final selected = _selectedCategorySlug == slug;
+      return Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: ChoiceChip(
+          label: Text(label),
+          selected: selected,
+          onSelected: (_) => _selectChildChip(slug),
+          showCheckmark: false,
+          labelStyle: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: selected ? AppColors.primaryDark : AppColors.body,
+          ),
+          backgroundColor: AppColors.card,
+          selectedColor: AppColors.primarySoft,
+          side: BorderSide(color: selected ? AppColors.primary : AppColors.line),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+          visualDensity: VisualDensity.compact,
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 54,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(16, 10, 8, 6),
+        children: [
+          chip('All', root.slug),
+          for (final child in root.children) chip(child.name, child.slug),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFilterRow() {
-    final categoryLabel = _selectedCategoryName ?? 'Category';
+    final categoryLabel = _rootCategoryName ?? 'Category';
     final brandLabel = _selectedBrandSlugs.isEmpty ? 'Brand' : 'Brand · ${_selectedBrandSlugs.length}';
-    final sortLabel = _selectedSort == null ? 'Sort' : _sortOptions[_selectedSort]!;
+    final sortLabel = _selectedSort == null ? _recommendedLabel : _sortOptions[_selectedSort]!;
 
     return SizedBox(
       height: 40,
@@ -545,7 +738,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           _FilterChip(
             label: categoryLabel,
             icon: Icons.grid_view_rounded,
-            active: _selectedCategorySlug != null,
+            active: _rootSlug != null,
             onTap: _openCategorySheet,
           ),
           const SizedBox(width: 8),
@@ -561,6 +754,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
             icon: Icons.swap_vert_rounded,
             active: _selectedSort != null,
             onTap: _openSortSheet,
+          ),
+          const SizedBox(width: 8),
+          _FilterChip(
+            label: _hasPriceOrStockFilter ? 'Filter · on' : 'Filter',
+            icon: Icons.tune_rounded,
+            active: _hasPriceOrStockFilter,
+            onTap: _openFilterSheet,
           ),
           if (_hasActiveFilters) ...[
             const SizedBox(width: 8),
@@ -621,6 +821,145 @@ class _FilterChip extends StatelessWidget {
                 const SizedBox(width: 2),
                 Icon(Icons.expand_more_rounded, size: 16, color: fg),
               ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// What the Filter sheet hands back on Apply.
+class _FilterResult {
+  final bool inStockOnly;
+  final double? minPrice;
+  final double? maxPrice;
+
+  const _FilterResult({required this.inStockOnly, this.minPrice, this.maxPrice});
+}
+
+/// In-stock toggle plus a min/max price range. Prices are typed in the
+/// store's currency; a blank field means "no limit".
+///
+/// Its own StatefulWidget so the text controllers live and die with the
+/// sheet: disposing them from the caller the moment the sheet's future
+/// completed tore them down while the closing animation was still drawing
+/// the fields, which crashed with `_dependents.isEmpty`.
+class _FilterSheet extends StatefulWidget {
+  final _FilterResult initial;
+  const _FilterSheet({required this.initial});
+
+  @override
+  State<_FilterSheet> createState() => _FilterSheetState();
+}
+
+class _FilterSheetState extends State<_FilterSheet> {
+  late bool _inStock = widget.initial.inStockOnly;
+  late final _minController = TextEditingController(text: _formatBound(widget.initial.minPrice));
+  late final _maxController = TextEditingController(text: _formatBound(widget.initial.maxPrice));
+  String? _rangeError;
+
+  static String _formatBound(double? value) {
+    if (value == null) return '';
+    return value == value.roundToDouble() ? value.toInt().toString() : value.toString();
+  }
+
+  @override
+  void dispose() {
+    _minController.dispose();
+    _maxController.dispose();
+    super.dispose();
+  }
+
+  void _apply() {
+    final min = double.tryParse(_minController.text.trim());
+    final max = double.tryParse(_maxController.text.trim());
+    if (min != null && max != null && min > max) {
+      setState(() => _rangeError = 'Min price must be less than max price.');
+      return;
+    }
+    Navigator.of(context).pop(_FilterResult(
+      inStockOnly: _inStock,
+      minPrice: (min != null && min > 0) ? min : null,
+      maxPrice: (max != null && max > 0) ? max : null,
+    ));
+  }
+
+  InputDecoration _priceField(String label) => InputDecoration(
+        labelText: label,
+        prefixText: CurrencySettings.symbol.isEmpty ? null : '${CurrencySettings.symbol} ',
+        isDense: true,
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      // Lift the sheet above the keyboard while typing a price.
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Filter', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.inkStrong)),
+              const SizedBox(height: 8),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('In stock only'),
+                value: _inStock,
+                onChanged: (v) => setState(() => _inStock = v),
+              ),
+              const SizedBox(height: 8),
+              Text('Price range', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.inkStrong)),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _minController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: _priceField('Min'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _maxController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: _priceField('Max'),
+                    ),
+                  ),
+                ],
+              ),
+              if (_rangeError != null) ...[
+                const SizedBox(height: 8),
+                Text(_rangeError!, style: TextStyle(color: AppColors.sale, fontSize: 12.5)),
+              ],
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => setState(() {
+                        _inStock = false;
+                        _minController.clear();
+                        _maxController.clear();
+                        _rangeError = null;
+                      }),
+                      child: const Text('Reset'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _apply,
+                      child: const Text('Apply'),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),

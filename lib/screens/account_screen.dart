@@ -1,15 +1,21 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/api_config.dart';
 import '../core/api_exception.dart';
 import '../core/money.dart';
 import '../models/user.dart';
+import '../services/content_service.dart';
 import '../services/order_service.dart';
+import '../l10n/app_localizations.dart';
 import '../state/auth_state.dart';
+import '../state/locale_state.dart';
+import '../state/referral_state.dart';
 import '../state/theme_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/referral_card.dart';
 import 'addresses_screen.dart';
 import 'blog_list_screen.dart';
 import 'contact_screen.dart';
@@ -20,12 +26,15 @@ import 'notifications_screen.dart';
 import 'order_detail_screen.dart';
 import 'order_tracking_screen.dart';
 import 'orders_screen.dart';
+import 'shop_by_category_screen.dart';
 import 'static_page_screen.dart';
 import 'wishlist_screen.dart';
 
 /// Profile tab laid out like the storefront mock: dotted header panel with a
 /// ringed avatar, name + handle, a gradient promo banner, then bordered menu
-/// tiles with a small ↗ action, legal links, logout and recent orders.
+/// tiles with a small ↗ action, legal links, logout, recent orders and the
+/// store's social links. It is also the app's menu — everything the old
+/// side drawer offered lives here.
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
 
@@ -41,10 +50,36 @@ class _AccountScreenState extends State<AccountScreen> {
   final _picker = ImagePicker();
   List<Map> _recentOrders = [];
 
+  /// `social_links` from `/footer` — `[{label, url}]`.
+  List<Map> _socialLinks = [];
+
   @override
   void initState() {
     super.initState();
     if (AuthState.instance.isAuthenticated) _loadOrders();
+    _loadSocialLinks();
+  }
+
+  Future<void> _loadSocialLinks() async {
+    try {
+      final response = await ContentService.instance.footer();
+      final data = (response is Map ? response['data'] ?? response : {}) as Map;
+      final links = ((data['social_links'] as List?) ?? [])
+          .whereType<Map>()
+          .where((link) => (link['url'] as String?)?.isNotEmpty == true)
+          .toList();
+      if (mounted) setState(() => _socialLinks = links);
+    } catch (_) {
+      // The "Follow us" row just stays hidden.
+    }
+  }
+
+  Future<void> _openUrl(String? url) async {
+    final uri = url == null ? null : Uri.tryParse(url);
+    if (uri == null) return;
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open the link.')));
+    }
   }
 
   Future<void> _loadOrders() async {
@@ -156,6 +191,58 @@ class _AccountScreenState extends State<AccountScreen> {
         ThemeMode.dark => 'Dark',
       };
 
+  String _languageLabel(BuildContext context, Locale? locale) {
+    final l10n = AppLocalizations.of(context);
+    return switch (locale?.languageCode) {
+      'en' => l10n.languageEnglish,
+      'bn' => l10n.languageBangla,
+      _ => l10n.languageSystem,
+    };
+  }
+
+  Future<void> _openLanguageSheet(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
+    final options = <String, Locale?>{
+      l10n.languageSystem: null,
+      l10n.languageEnglish: const Locale('en'),
+      l10n.languageBangla: const Locale('bn'),
+    };
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  l10n.language,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.inkStrong),
+                ),
+              ),
+            ),
+            for (final entry in options.entries)
+              ListTile(
+                title: Text(entry.key),
+                trailing: LocaleState.instance.locale?.languageCode == entry.value?.languageCode
+                    ? Icon(Icons.check_rounded, color: AppColors.primary)
+                    : null,
+                onTap: () {
+                  LocaleState.instance.setLocale(entry.value);
+                  Navigator.of(sheetContext).pop();
+                },
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _openAppearanceSheet(BuildContext context) async {
     await showModalBottomSheet<void>(
       context: context,
@@ -232,9 +319,18 @@ class _AccountScreenState extends State<AccountScreen> {
           final user = auth.isAuthenticated ? auth.user : null;
 
           return RefreshIndicator(
-            onRefresh: user == null ? () async {} : _loadOrders,
+            // Re-fetches orders and the referral card together.
+            onRefresh: user == null
+                ? () async {}
+                : () async {
+                    await Future.wait([_loadOrders(), ReferralState.instance.refresh()]);
+                  },
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
+              // AlwaysScrollable so pull-to-refresh works even when the
+              // signed-out menu fits on screen; the bottom inset clears
+              // MainShell's floating nav, which otherwise hides the last rows.
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(20, 4, 20, 32 + MediaQuery.paddingOf(context).bottom),
               children: [
                 _ProfileHeader(
                   user: user,
@@ -249,6 +345,10 @@ class _AccountScreenState extends State<AccountScreen> {
                   subtitle: 'Explore deals and save on your next order',
                   onTap: () => _push(const CouponsScreen()),
                 ),
+                if (user != null) ...[
+                  const SizedBox(height: 18),
+                  const ReferralCard(),
+                ],
                 const SizedBox(height: 18),
                 _MenuCard(
                   tiles: [
@@ -258,6 +358,7 @@ class _AccountScreenState extends State<AccountScreen> {
                       _MenuTile(icon: Icons.location_on_outlined, label: 'Shipping Addresses', onTap: () => _push(const AddressesScreen())),
                       _MenuTile(icon: Icons.favorite_border_rounded, label: 'Wishlist', onTap: () => _push(const WishlistScreen())),
                     ],
+                    _MenuTile(icon: Icons.grid_view_rounded, label: 'Categories', onTap: () => _push(const ShopByCategoryScreen())),
                     _MenuTile(icon: Icons.local_shipping_outlined, label: 'Track an Order', onTap: () => _push(const OrderTrackingScreen())),
                     _MenuTile(icon: Icons.support_agent_outlined, label: 'Help & Support', onTap: () => _push(const ContactScreen())),
                     _MenuTile(icon: Icons.article_outlined, label: 'Blog', onTap: () => _push(const BlogListScreen())),
@@ -268,6 +369,15 @@ class _AccountScreenState extends State<AccountScreen> {
                         label: 'Appearance',
                         trailingText: _modeLabel(ThemeState.instance.mode),
                         onTap: () => _openAppearanceSheet(context),
+                      ),
+                    ),
+                    ListenableBuilder(
+                      listenable: LocaleState.instance,
+                      builder: (context, _) => _MenuTile(
+                        icon: Icons.translate_rounded,
+                        label: AppLocalizations.of(context).language,
+                        trailingText: _languageLabel(context, LocaleState.instance.locale),
+                        onTap: () => _openLanguageSheet(context),
                       ),
                     ),
                   ],
@@ -316,10 +426,76 @@ class _AccountScreenState extends State<AccountScreen> {
                   else
                     ..._recentOrders.map((order) => _RecentOrderCard(order: order)),
                 ],
+                if (_socialLinks.isNotEmpty) ...[
+                  const SizedBox(height: 28),
+                  Text(
+                    'Follow us',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.inkStrong),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      for (final link in _socialLinks)
+                        _SocialButton(
+                          label: (link['label'] as String?) ?? '',
+                          onTap: () => _openUrl(link['url'] as String?),
+                        ),
+                    ],
+                  ),
+                ],
               ],
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// Round button for one of the store's social profiles, iconed by its label.
+class _SocialButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _SocialButton({required this.label, required this.onTap});
+
+  static const _icons = <String, IconData>{
+    'facebook': Icons.facebook,
+    'instagram': Icons.camera_alt_outlined,
+    'youtube': Icons.play_circle_outline,
+    'twitter': Icons.alternate_email,
+    'x': Icons.alternate_email,
+    'linkedin': Icons.business_center_outlined,
+    'tiktok': Icons.music_note_outlined,
+    'whatsapp': Icons.chat_bubble_outline,
+  };
+
+  IconData get _icon {
+    final lower = label.toLowerCase();
+    for (final entry in _icons.entries) {
+      if (lower.contains(entry.key)) return entry.value;
+    }
+    return Icons.link;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: label,
+      child: Material(
+        color: AppColors.card,
+        shape: CircleBorder(side: BorderSide(color: AppColors.line)),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: SizedBox(
+            width: 46,
+            height: 46,
+            child: Icon(_icon, size: 20, color: AppColors.inkStrong),
+          ),
+        ),
       ),
     );
   }

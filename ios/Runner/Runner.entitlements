@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Universal Links for referral links https://<host>/ref/{CODE}.
+	     The host is REFERRAL_HOST in ios/Flutter/Referral.xcconfig. The
+	     site must serve /.well-known/apple-app-site-association listing
+	     this app's team id + bundle id, and the App ID needs the
+	     Associated Domains capability. -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:$(REFERRAL_HOST)</string>
+	</array>
+</dict>
+</plist>

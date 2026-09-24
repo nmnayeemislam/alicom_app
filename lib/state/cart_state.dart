@@ -15,6 +15,17 @@ class CartState extends ChangeNotifier {
     (sum, item) => sum + ((item['quantity'] as num?)?.toInt() ?? 0),
   );
 
+  /// The `products` list for `POST /coupons/check`: each product id once
+  /// per unit in the cart. The backend sums one price per entry to get the
+  /// subtotal, so sending each id once made a 2 × \$150 cart look like
+  /// \$150 — and a minimum-order coupon was wrongly refused.
+  List<int> get couponProductIds => [
+    for (final item in items)
+      if ((item as Map)['product_id'] is int)
+        for (var i = 0; i < ((item['quantity'] as num?)?.toInt() ?? 1).clamp(1, 999); i++)
+          item['product_id'] as int,
+  ];
+
   Future<void> refresh() async {
     isLoading = true;
     notifyListeners();

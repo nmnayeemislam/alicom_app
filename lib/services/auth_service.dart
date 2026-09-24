@@ -25,23 +25,28 @@ class AuthService {
 
   /// [countryIso] is the two-letter code from [countries] (e.g. 'BD') —
   /// required by RegisterRequest to normalize [phone] into a single stored
-  /// format. [email] is optional; [password] must be at least 8 characters.
+  /// format. [email] is optional; [password] must be at least 8 characters
+  /// and [passwordConfirmation] must match it (Laravel's `confirmed` rule).
   Future<AuthResult> register({
     required String name,
     required String countryIso,
     required String phone,
     String? email,
     required String password,
+    required String passwordConfirmation,
+    String? referralCode,
   }) async {
     final response = await _client.post(
       ApiEndpoints.register,
+      // No referrer id is ever sent — the backend derives it from the code.
       data: {
+        'referral_code': ?referralCode,
         'name': name,
         'country_iso': countryIso,
         'phone': phone,
         'email': ?email,
         'password': password,
-        'password_confirmation': password,
+        'password_confirmation': passwordConfirmation,
       },
     );
     return _handleAuthResponse(response.data);

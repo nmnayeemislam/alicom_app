@@ -1,0 +1,222 @@
+{
+  "@@locale": "en",
+  "referEarnTitle": "Refer & Earn",
+  "referEarnSubtitle": "Invite friends and earn loyalty points",
+  "yourReferralCode": "Your referral code",
+  "copy": "Copy",
+  "copied": "Copied to clipboard",
+  "share": "Share",
+  "referralShareMessage": "Join Alicom with my code {code} and shop: {link}",
+  "@referralShareMessage": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      },
+      "link": {
+        "type": "String"
+      }
+    }
+  },
+  "pointsToNextCoupon": "{points} points to your next {percent}% coupon",
+  "@pointsToNextCoupon": {
+    "placeholders": {
+      "points": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "couponReadyToRedeem": "You can redeem a {percent}% coupon now!",
+  "@couponReadyToRedeem": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "earnRule": "Earn {points} points when a friend completes their first order.",
+  "@earnRule": {
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "invitedByLong": "You were invited by {name}",
+  "@invitedByLong": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "haveReferralCode": "Have a referral code?",
+  "referralUnavailable": "Referral programme is currently unavailable",
+  "pointsBalance": "Points balance",
+  "pointsShort": "{points} pts",
+  "@pointsShort": {
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "pointsProgress": "{balance} / {threshold} pts",
+  "@pointsProgress": {
+    "placeholders": {
+      "balance": {
+        "type": "String"
+      },
+      "threshold": {
+        "type": "String"
+      }
+    }
+  },
+  "viewDetails": "View details",
+  "tabOverview": "Overview",
+  "tabHistory": "History",
+  "tabRewards": "Rewards",
+  "statTotalReferred": "Total referred",
+  "statPending": "Pending",
+  "statRewarded": "Rewarded",
+  "statPointsEarned": "Points earned",
+  "filterAll": "All",
+  "filterPending": "Pending",
+  "filterRewarded": "Rewarded",
+  "filterReversed": "Reversed",
+  "statusWaiting": "Waiting for first order",
+  "statusRewardedPoints": "+{points} pts",
+  "@statusRewardedPoints": {
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "statusReversed": "Reversed",
+  "statusCapped": "Limit reached",
+  "joinedOn": "Joined {date}",
+  "@joinedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "rewardedOn": "Rewarded {date}",
+  "@rewardedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "historyEmpty": "No referrals yet — share your code to start earning.",
+  "redeemPointsButton": "Redeem {points} points",
+  "@redeemPointsButton": {
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "redeemConfirmTitle": "Redeem points?",
+  "redeemConfirmBody": "Spend {points} points for a {percent}% coupon (orders of {minOrder}+ only)?",
+  "@redeemConfirmBody": {
+    "placeholders": {
+      "points": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "String"
+      },
+      "minOrder": {
+        "type": "String"
+      }
+    }
+  },
+  "cancel": "Cancel",
+  "redeem": "Redeem",
+  "couponReadyTitle": "Your coupon is ready!",
+  "useNow": "Use now",
+  "yourCoupons": "Your coupons",
+  "couponsEmpty": "No coupons yet. Redeem your points to get one.",
+  "couponPercentOff": "{percent}% off",
+  "@couponPercentOff": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "couponAmountOff": "{amount} off",
+  "@couponAmountOff": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "couponMinOrder": "Min order {amount}",
+  "@couponMinOrder": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "couponMaxDiscount": "Up to {amount} off",
+  "@couponMaxDiscount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "couponExpires": "Expires {date}",
+  "@couponExpires": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "couponStatusActive": "Active",
+  "couponStatusUsed": "Used",
+  "couponStatusExpired": "Expired",
+  "referralCodeField": "Referral code (optional)",
+  "scanQr": "Scan QR",
+  "scanQrTitle": "Scan referral QR",
+  "scanQrHint": "Point the camera at a referral QR code",
+  "cameraUnavailable": "Camera is not available. Allow camera access in Settings and try again.",
+  "codeInvitedBy": "Invited by {name}",
+  "@codeInvitedBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "codeNotValid": "This referral code is not valid",
+  "applyCodeTitle": "Apply a referral code",
+  "applyCodeBody": "Enter the code a friend shared with you. They earn points once your first order is completed.",
+  "apply": "Apply",
+  "codeApplied": "Referral code applied. Invited by {name}",
+  "@codeApplied": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "enterReferralCode": "Enter a referral code",
+  "tooManyAttempts": "Too many attempts, please wait a minute.",
+  "somethingWentWrong": "Something went wrong. Please try again.",
+  "retry": "Retry",
+  "language": "Language",
+  "languageSystem": "System",
+  "languageEnglish": "English",
+  "languageBangla": "বাংলা"
+}

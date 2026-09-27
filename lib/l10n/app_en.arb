@@ -218,5 +218,39 @@
   "language": "Language",
   "languageSystem": "System",
   "languageEnglish": "English",
-  "languageBangla": "বাংলা"
+  "languageBangla": "বাংলা",
+  "onboardTitle1": "Discover & shop trends",
+  "onboardBody1": "Browse a catalogue that keeps up with you — new arrivals, best sellers and the deals worth your time.",
+  "onboardTitle2": "Rewards on every order",
+  "onboardBody2": "Collect points as you shop, invite friends, and turn both into member-only discounts.",
+  "onboardTitle3": "Delivered to your door",
+  "onboardBody3": "Track your parcel from checkout to doorstep, and pay however suits you best.",
+  "onboardSkip": "Skip",
+  "onboardNext": "Next",
+  "onboardGetStarted": "Get Started",
+  "invoice": "Invoice",
+  "invoiceReady": "Invoice ready",
+  "invoicePreparing": "Preparing…",
+  "invoiceView": "View",
+  "invoiceNotAvailable": "Invoice not available for this order.",
+  "invoiceFailed": "Could not download the invoice. Check your connection and try again.",
+  "invoiceShareText": "Invoice {code}",
+  "@invoiceShareText": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "invoiceDownload": "Invoice Download",
+  "invoiceSave": "Save to Downloads",
+  "invoiceSaved": "Saved to Downloads as {name}",
+  "@invoiceSaved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "invoiceSaveFailed": "Could not save the file. Try sharing it instead."
 }

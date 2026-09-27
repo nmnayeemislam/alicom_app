@@ -12,12 +12,13 @@ import '../services/content_service.dart';
 import '../services/settings_service.dart';
 import '../state/auth_state.dart';
 import '../state/cart_state.dart';
+import '../state/notification_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/count_badge.dart';
+import '../widgets/notification_bell.dart';
 import '../widgets/product_grid_card.dart';
 import '../widgets/state_views.dart';
-import 'cart_screen.dart';
 import 'main_shell.dart';
-import 'notifications_screen.dart';
 import 'product_detail_screen.dart';
 import 'shop_by_category_screen.dart';
 import 'products_screen.dart';
@@ -320,7 +321,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Greeting header: the shopper's avatar with a time-of-day greeting and
   /// their name (tap → Profile tab, which holds everything the old side
-  /// menu did), then round bell and cart buttons.
+  /// menu did), then the round bell — the cart is the raised button in the
+  /// bottom nav, so it is not repeated up here.
   /// Guests get a neutral avatar and "Welcome to Alicom".
   Widget _buildTopBar(BuildContext context) {
     return Padding(
@@ -373,22 +375,12 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(width: 10),
-          _RoundIconButton(
-            icon: Icons.notifications_none_rounded,
-            showDot: true,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-            ),
-          ),
-          const SizedBox(width: 10),
           ListenableBuilder(
-            listenable: CartState.instance,
+            listenable: NotificationState.instance,
             builder: (context, _) => _RoundIconButton(
-              icon: Icons.shopping_bag_outlined,
-              count: CartState.instance.totalItems,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const CartScreen()),
-              ),
+              icon: Icons.notifications_none_rounded,
+              count: NotificationState.instance.unreadCount,
+              onTap: () => NotificationBell.open(context),
             ),
           ),
         ],
@@ -884,7 +876,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onSeeAll: () => _goToCategory(context, row)),
         SizedBox(
           // A 158-wide ProductGridCard with a square photo on top.
-          height: _rowCardWidth + ProductGridCard.infoHeightFor(context),
+          height: ProductGridCard.heightFor(context, _rowCardWidth),
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1318,7 +1310,7 @@ class _HomeSkeletonState extends State<_HomeSkeleton> with SingleTickerProviderS
   @override
   Widget build(BuildContext context) {
     final cardWidth = _rowCardWidth;
-    final cardHeight = cardWidth + ProductGridCard.infoHeightFor(context);
+    final cardHeight = ProductGridCard.heightFor(context, cardWidth);
     return FadeTransition(
       opacity: Tween(begin: 0.45, end: 1.0).animate(_pulse),
       child: ListView(
@@ -1424,15 +1416,14 @@ class _GreetingAvatar extends StatelessWidget {
   }
 }
 
-/// 46px round button on the card colour with a soft shadow; optional red
-/// dot (bell) or count badge (cart).
+/// 46px round button on the card colour with a soft shadow, with an
+/// optional red count in the corner (the bell's unread total).
 class _RoundIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
-  final bool showDot;
   final int count;
 
-  const _RoundIconButton({required this.icon, required this.onTap, this.showDot = false, this.count = 0});
+  const _RoundIconButton({required this.icon, required this.onTap, this.count = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -1461,41 +1452,12 @@ class _RoundIconButton extends StatelessWidget {
               ),
             ),
           ),
-          if (showDot)
-            Positioned(
-              top: 12,
-              right: 13,
-              child: IgnorePointer(
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: AppColors.sale,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.card, width: 1.5),
-                  ),
-                ),
-              ),
-            ),
           if (count > 0)
             Positioned(
-              top: -3,
-              right: -3,
+              top: -2,
+              right: -2,
               child: IgnorePointer(
-                child: Container(
-                  constraints: const BoxConstraints(minWidth: 19),
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: AppColors.background, width: 2),
-                  ),
-                  child: Text(
-                    count > 99 ? '99+' : '$count',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
-                  ),
-                ),
+                child: CountBadge(count: count, borderColor: AppColors.background),
               ),
             ),
         ],

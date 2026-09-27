@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/push_notifications.dart';
 import '../core/token_storage.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
@@ -98,6 +99,10 @@ class AuthState extends ChangeNotifier {
 
   Future<void> logout() async {
     await AuthService.instance.logout();
+    // The backend keeps one FCM token per user and does not clear it on
+    // logout, so the device drops its own — otherwise the next person to
+    // sign in here would keep getting the previous customer's pushes.
+    await PushNotifications.instance.onSignedOut();
     user = null;
     notifyListeners();
   }

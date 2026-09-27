@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'core/deep_links.dart';
+import 'core/push_notifications.dart';
 import 'l10n/app_localizations.dart';
 import 'screens/splash_screen.dart';
 import 'state/locale_state.dart';
@@ -16,6 +17,9 @@ void main() async {
     LocaleState.instance.restore(),
   ]);
   DeepLinks.instance.init();
+  // Registers the background handler and picks up a notification that
+  // launched the app; the permission prompt waits until sign-in.
+  await PushNotifications.instance.init();
   runApp(const AlicomApp());
 }
 

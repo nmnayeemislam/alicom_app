@@ -7,6 +7,10 @@
 	     site must serve /.well-known/apple-app-site-association listing
 	     this app's team id + bundle id, and the App ID needs the
 	     Associated Domains capability. -->
+	<!-- Push notifications. Release builds need this flipped to
+	     "production" (Xcode does it when the capability is added there). -->
+	<key>aps-environment</key>
+	<string>development</string>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>applinks:$(REFERRAL_HOST)</string>

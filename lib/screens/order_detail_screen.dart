@@ -1,12 +1,21 @@
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../core/api_config.dart';
 import '../core/api_exception.dart';
+import '../core/file_downloads.dart';
 import '../core/money.dart';
+import '../l10n/app_localizations.dart';
+import '../models/order_tracking.dart';
 import '../services/order_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/order_stage_tracker.dart';
 import '../widgets/state_views.dart';
+import 'invoice_viewer_screen.dart';
+import 'login_screen.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   final int orderId;
@@ -21,6 +30,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   String? _error;
   Map? _order;
   bool _isActionBusy = false;
+
+  /// One download at a time — the button is disabled while this is set, so
+  /// a second tap cannot start a second request.
+  bool _isDownloadingInvoice = false;
+
+  /// Where the order has got to. Fetched after the order itself, since it
+  /// needs the order code and phone the order carries.
+  OrderTracking? _tracking;
 
   @override
   void initState() {
@@ -37,10 +54,25 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       final response = await OrderService.instance.myOrder(widget.orderId);
       final data = (response is Map ? response['data'] ?? response : {}) as Map;
       _order = (data['order'] as Map?) ?? data;
+      _loadTracking();
     } catch (e) {
       _error = e.toString();
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  /// The stage list is decoration around the order itself — a failure here
+  /// leaves the rest of the page alone.
+  Future<void> _loadTracking() async {
+    final code = _order?['order_code'] as String?;
+    final phone = _order?['phone'] as String?;
+    if (code == null || phone == null) return;
+    try {
+      final tracking = await OrderService.instance.tracking(orderCode: code, phone: phone);
+      if (mounted) setState(() => _tracking = tracking);
+    } catch (_) {
+      // Leave the status line on its own.
     }
   }
 
@@ -106,6 +138,148 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
   }
 
+  /// Downloads the invoice, then offers to read it or pass it on.
+  Future<void> _openInvoice() async {
+    if (_isDownloadingInvoice) return;
+    final l10n = AppLocalizations.of(context);
+    setState(() => _isDownloadingInvoice = true);
+    try {
+      final file = await OrderService.instance.downloadInvoice(
+        widget.orderId,
+        orderCode: _order?['order_code'] as String?,
+      );
+      if (!mounted) return;
+      _showInvoiceSheet(file);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      switch (e.statusCode) {
+        case 401:
+          // Same as every other authenticated screen: the session is gone.
+          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
+        case 404:
+          _snack(l10n.invoiceNotAvailable);
+        default:
+          _snack(l10n.invoiceFailed, onRetry: _openInvoice);
+      }
+    } catch (_) {
+      if (mounted) _snack(l10n.invoiceFailed, onRetry: _openInvoice);
+    } finally {
+      if (mounted) setState(() => _isDownloadingInvoice = false);
+    }
+  }
+
+  void _showInvoiceSheet(File file) {
+    final l10n = AppLocalizations.of(context);
+    final code = _order?['order_code'] as String?;
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                l10n.invoiceReady,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.inkStrong),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                file.uri.pathSegments.last,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12.5, color: AppColors.muted),
+              ),
+              const SizedBox(height: 18),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(sheetContext).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => InvoiceViewerScreen(file: file, orderCode: code),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.visibility_outlined, size: 20),
+                style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                label: Text(l10n.invoiceView),
+              ),
+              // Android can put the file straight into the phone's
+              // Downloads folder; elsewhere the share sheet's "Save to
+              // Files" is the native way, so only Share is offered.
+              if (FileDownloads.isSupported) ...[
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: () => _saveInvoiceToDownloads(sheetContext, file),
+                  icon: const Icon(Icons.download_rounded, size: 20),
+                  style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                  label: Text(l10n.invoiceSave),
+                ),
+              ],
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: () => _shareInvoice(sheetContext, file, code),
+                icon: const Icon(Icons.ios_share_rounded, size: 20),
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                label: Text(l10n.share),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Copies the downloaded invoice into the phone's Downloads folder.
+  /// Pre-Android-10 returns null (no MediaStore) — the share sheet covers it.
+  Future<void> _saveInvoiceToDownloads(BuildContext sheetContext, File file) async {
+    final l10n = AppLocalizations.of(context);
+    final name = file.uri.pathSegments.last;
+    Navigator.of(sheetContext).pop();
+    try {
+      final saved = await FileDownloads.saveToDownloads(
+        file,
+        fileName: name,
+        mimeType: 'application/pdf',
+      );
+      if (!mounted) return;
+      if (saved == null) {
+        _snack(l10n.invoiceSaveFailed);
+      } else {
+        _snack(l10n.invoiceSaved(saved));
+      }
+    } catch (_) {
+      if (mounted) _snack(l10n.invoiceSaveFailed);
+    }
+  }
+
+  Future<void> _shareInvoice(BuildContext sheetContext, File file, String? code) async {
+    final l10n = AppLocalizations.of(context);
+    final box = sheetContext.findRenderObject() as RenderBox?;
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path, mimeType: 'application/pdf')],
+        text: l10n.invoiceShareText(code ?? ''),
+        sharePositionOrigin: box == null ? null : box.localToGlobal(Offset.zero) & box.size,
+      ),
+    );
+  }
+
+  void _snack(String message, {VoidCallback? onRetry}) {
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          action: onRetry == null ? null : SnackBarAction(label: l10n.retry, onPressed: onRetry),
+        ),
+      );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -152,6 +326,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             ],
           ),
         ),
+        if (_tracking != null && _tracking!.stages.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Text('Order stage', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 12),
+          OrderStageTracker(tracking: _tracking!),
+        ],
         const SizedBox(height: 16),
         Text('Items', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
@@ -206,6 +386,21 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           )
         else
           Text('Refund status: $refundStatus', style: TextStyle(color: AppColors.muted)),
+        const SizedBox(height: 10),
+        // The invoice is the server's PDF — downloading it is also how the
+        // customer shares or files their own copy.
+        ElevatedButton.icon(
+          onPressed: _isDownloadingInvoice ? null : _openInvoice,
+          icon: _isDownloadingInvoice
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : const Icon(Icons.download_rounded, size: 20),
+          style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+          label: Text(
+            _isDownloadingInvoice
+                ? AppLocalizations.of(context).invoicePreparing
+                : AppLocalizations.of(context).invoiceDownload,
+          ),
+        ),
       ],
     );
   }

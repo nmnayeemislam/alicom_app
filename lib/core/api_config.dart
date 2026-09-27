@@ -21,9 +21,14 @@ class ApiConfig {
 
   static const String _override = String.fromEnvironment('API_BASE_URL');
 
-  static const String _defaultBaseUrl = 'https://uat-alicom.razinsoft.com/api';
+  static const String _defaultBaseUrl = 'http://127.0.0.1:8000/api';
 
   static String get baseUrl => _override.isNotEmpty ? _override : _defaultBaseUrl;
+
+  /// The storefront's origin — the API host without the `/api` prefix.
+  /// Used to turn a backend-relative path (a broadcast's `link` or `image`)
+  /// into something that can be opened or loaded.
+  static String get siteOrigin => Uri.parse(baseUrl).origin;
 
   /// Turns a path the API returned into something an image widget can load.
   ///

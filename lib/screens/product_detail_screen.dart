@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
@@ -512,8 +514,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 }
 
-/// Swipeable product photos on the page background (no card), with dots
+/// Swipeable product photos on one rounded tile, with dots and a counter
 /// when there is more than one.
+///
+/// The tile is a fixed 4:3 so every product opens to the same shape —
+/// the photos themselves arrive at all sorts of sizes, and letting them set
+/// the height made the page jump between products.
+///
+/// The whole photo is shown (`contain`), so a tall bottle or a wide TV is
+/// never cropped, and the space around it is filled with a blurred, scaled
+/// copy of the same photo — the tile reads as full-bleed instead of leaving
+/// a flat white margin around the product.
 class _ImageGallery extends StatefulWidget {
   final List<String> images;
   const _ImageGallery({required this.images});
@@ -523,56 +534,153 @@ class _ImageGallery extends StatefulWidget {
 }
 
 class _ImageGalleryState extends State<_ImageGallery> {
+  final _controller = PageController();
   int _index = 0;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final images = widget.images.where((url) => url.isNotEmpty).toList();
-    return Column(
-      children: [
-        SizedBox(
-          height: 300,
-          child: images.isEmpty
-              ? Icon(Icons.image_not_supported_outlined, size: 56, color: AppColors.muted)
-              : PageView.builder(
-                  itemCount: images.length,
-                  onPageChanged: (i) => setState(() => _index = i),
-                  itemBuilder: (context, i) => Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(22),
-                      child: CachedNetworkImage(
-                        imageUrl: images[i],
-                        fit: BoxFit.contain,
-                        placeholder: (_, _) => const Center(
-                          child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2)),
-                        ),
-                        errorWidget: (_, _, _) => Icon(Icons.image_not_supported_outlined, size: 56, color: AppColors.muted),
-                      ),
-                    ),
-                  ),
+    final fallback = Center(
+      child: Icon(Icons.image_outlined, size: 48, color: AppColors.lineStrong),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+      child: Column(
+        children: [
+          AspectRatio(
+            aspectRatio: 4 / 3,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 8)),
+                ],
+              ),
+              child: Material(
+                color: AppColors.card,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  side: BorderSide(color: AppColors.line),
                 ),
-        ),
-        if (images.length > 1)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                images.length,
-                (i) => AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  width: i == _index ? 18 : 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: i == _index ? AppColors.primary : AppColors.lineStrong,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
+                clipBehavior: Clip.antiAlias,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (images.isEmpty)
+                      fallback
+                    else
+                      PageView.builder(
+                        controller: _controller,
+                        itemCount: images.length,
+                        onPageChanged: (i) => setState(() => _index = i),
+                        itemBuilder: (context, i) => _Photo(url: images[i], fallback: fallback),
+                      ),
+                    // Which photo of how many — clearer than dots alone once
+                    // a product carries more than three.
+                    if (images.length > 1)
+                      Positioned(
+                        top: 12,
+                        right: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.inkStrong.withValues(alpha: 0.55),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '${_index + 1}/${images.length}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
           ),
+          if (images.length > 1)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  images.length,
+                  (i) => GestureDetector(
+                    onTap: () => _controller.animateToPage(
+                      i,
+                      duration: const Duration(milliseconds: 280),
+                      curve: Curves.easeOut,
+                    ),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      width: i == _index ? 18 : 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: i == _index ? AppColors.primary : AppColors.lineStrong,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One gallery photo: the product drawn whole, over a blurred copy of
+/// itself that fills whatever space is left.
+class _Photo extends StatelessWidget {
+  final String url;
+  final Widget fallback;
+
+  const _Photo({required this.url, required this.fallback});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ImageFiltered(
+          imageFilter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+          child: CachedNetworkImage(
+            imageUrl: url,
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.low,
+            // Decoded small on purpose — it is only ever seen blurred.
+            memCacheWidth: 64,
+            fadeInDuration: Duration.zero,
+            placeholder: (_, _) => const SizedBox.shrink(),
+            errorWidget: (_, _, _) => const SizedBox.shrink(),
+          ),
+        ),
+        // Takes the edge off a busy backdrop so the product stays the
+        // brightest thing on the tile.
+        ColoredBox(color: AppColors.card.withValues(alpha: 0.35)),
+        CachedNetworkImage(
+          imageUrl: url,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.medium,
+          fadeInDuration: const Duration(milliseconds: 200),
+          placeholder: (_, _) => const Center(
+            child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2)),
+          ),
+          errorWidget: (_, _, _) => fallback,
+        ),
       ],
     );
   }

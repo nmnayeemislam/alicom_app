@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import 'api_config.dart';
 
 import '../models/referral.dart';
 import '../screens/apply_referral_screen.dart';
@@ -48,6 +51,24 @@ class DeepLinks {
     }).catchError((_) {});
     _wasSignedIn = AuthState.instance.isAuthenticated;
     AuthState.instance.addListener(_onAuthChanged);
+  }
+
+  /// A link that arrived from somewhere other than the OS — today, the
+  /// `link` on an admin broadcast push. Absolute URLs and bare paths
+  /// ("/ref/ABC123") both work; anything that is not a referral link opens
+  /// in the browser rather than being swallowed.
+  Future<void> handleLink(String link) async {
+    if (link.isEmpty) return;
+    final uri = Uri.tryParse(link.startsWith('/') ? '${ApiConfig.siteOrigin}$link' : link);
+    if (uri == null) return;
+    if (uri.pathSegments.contains('ref')) {
+      _handle(uri);
+      return;
+    }
+    if (!uri.hasScheme) return;
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {}
   }
 
   void _handle(Uri uri) {

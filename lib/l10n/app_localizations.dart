@@ -523,6 +523,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'বাংলা'**
   String get languageBangla;
+
+  /// No description provided for @onboardTitle1.
+  ///
+  /// In en, this message translates to:
+  /// **'Discover & shop trends'**
+  String get onboardTitle1;
+
+  /// No description provided for @onboardBody1.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse a catalogue that keeps up with you — new arrivals, best sellers and the deals worth your time.'**
+  String get onboardBody1;
+
+  /// No description provided for @onboardTitle2.
+  ///
+  /// In en, this message translates to:
+  /// **'Rewards on every order'**
+  String get onboardTitle2;
+
+  /// No description provided for @onboardBody2.
+  ///
+  /// In en, this message translates to:
+  /// **'Collect points as you shop, invite friends, and turn both into member-only discounts.'**
+  String get onboardBody2;
+
+  /// No description provided for @onboardTitle3.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered to your door'**
+  String get onboardTitle3;
+
+  /// No description provided for @onboardBody3.
+  ///
+  /// In en, this message translates to:
+  /// **'Track your parcel from checkout to doorstep, and pay however suits you best.'**
+  String get onboardBody3;
+
+  /// No description provided for @onboardSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get onboardSkip;
+
+  /// No description provided for @onboardNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get onboardNext;
+
+  /// No description provided for @onboardGetStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Get Started'**
+  String get onboardGetStarted;
+
+  /// No description provided for @invoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Invoice'**
+  String get invoice;
+
+  /// No description provided for @invoiceReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Invoice ready'**
+  String get invoiceReady;
+
+  /// No description provided for @invoicePreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing…'**
+  String get invoicePreparing;
+
+  /// No description provided for @invoiceView.
+  ///
+  /// In en, this message translates to:
+  /// **'View'**
+  String get invoiceView;
+
+  /// No description provided for @invoiceNotAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Invoice not available for this order.'**
+  String get invoiceNotAvailable;
+
+  /// No description provided for @invoiceFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not download the invoice. Check your connection and try again.'**
+  String get invoiceFailed;
+
+  /// No description provided for @invoiceShareText.
+  ///
+  /// In en, this message translates to:
+  /// **'Invoice {code}'**
+  String invoiceShareText(String code);
+
+  /// No description provided for @invoiceDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Invoice Download'**
+  String get invoiceDownload;
+
+  /// No description provided for @invoiceSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to Downloads'**
+  String get invoiceSave;
+
+  /// No description provided for @invoiceSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to Downloads as {name}'**
+  String invoiceSaved(String name);
+
+  /// No description provided for @invoiceSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the file. Try sharing it instead.'**
+  String get invoiceSaveFailed;
 }
 
 class _AppLocalizationsDelegate

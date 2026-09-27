@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -16,17 +17,42 @@ import '../theme/app_theme.dart';
 /// edge-to-edge photo with a "New" badge and a wishlist heart,
 /// then the brand, a one-line name, and the price beside a round add button.
 ///
-/// Lay it out with [ProductGridDelegate] (or, in a horizontal row, a height
-/// of `width + infoHeightFor(context)`), which makes the photo square.
+/// Lay it out with [ProductGridDelegate], or in a horizontal row with a
+/// height of [heightFor].
 class ProductGridCard extends StatefulWidget {
+  /// Photo height as a fraction of the card's width. Slightly landscape
+  /// rather than square: it keeps the whole card shorter, so more products
+  /// fit on screen without dropping anything from the tile.
+  static const double imageAspect = 0.84;
+
   /// Height of everything under the photo — brand line, name, price row and
-  /// padding. The text parts grow with the system font size; the paddings
-  /// and the 36px add button do not. Measured at 1.0 scale as ~104px, with
-  /// a few px spare so a large font never overflows.
+  /// padding.
+  ///
+  /// Paddings, gaps and the add button are fixed; every text box grows with
+  /// the system font size, so this is measured rather than guessed at one
+  /// scale — a large font must not clip the name's descenders.
   static double infoHeightFor(BuildContext context) {
-    final scale = MediaQuery.textScalerOf(context).scale(10) / 10;
-    return 36 + 72 * scale;
+    final scale = textScaleOf(context);
+    const fixed = 9 + 9 + 4 + 5; // vertical padding + the two gaps
+    final brand = 10 * 1.3 * scale;
+    final title = _titleHeight(scale);
+    final priceColumn = _strikeHeight(scale) + 16 * 1.2 * scale;
+    // The price column sits beside the 32px button; the taller one wins.
+    return fixed + brand + title + math.max(32, priceColumn) + 3;
   }
+
+  static double textScaleOf(BuildContext context) =>
+      MediaQuery.textScalerOf(context).scale(10) / 10;
+
+  static double _titleHeight(double scale) => 13.5 * 1.25 * scale;
+
+  /// The struck-through original price. Kept (empty) on full-price cards so
+  /// price rows still line up across the grid.
+  static double _strikeHeight(double scale) => 11 * 1.28 * scale;
+
+  /// Total height of a card laid out at [width].
+  static double heightFor(BuildContext context, double width) =>
+      width * imageAspect + infoHeightFor(context);
 
   final Product product;
   /// Fired after the wishlist toggle round-trips, with the new state — the
@@ -122,6 +148,7 @@ class _ProductGridCardState extends State<ProductGridCard> {
   }
 
   Widget _buildCard(BuildContext context, Product product) {
+    final scale = ProductGridCard.textScaleOf(context);
     final label = (product.brandName?.isNotEmpty == true ? product.brandName! : product.category).toUpperCase();
     const radius = BorderRadius.all(Radius.circular(20));
     return AnimatedScale(
@@ -156,7 +183,7 @@ class _ProductGridCardState extends State<ProductGridCard> {
               children: [
                 Expanded(child: _buildImage(product)),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 11, 10, 10),
+                  padding: const EdgeInsets.fromLTRB(11, 9, 9, 9),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -168,8 +195,8 @@ class _ProductGridCardState extends State<ProductGridCard> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 10.5,
-                                letterSpacing: 1,
+                                fontSize: 10,
+                                letterSpacing: 0.9,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.muted,
                               ),
@@ -181,17 +208,17 @@ class _ProductGridCardState extends State<ProductGridCard> {
                             _DiscountPill(label: product.discountBadge!),
                         ],
                       ),
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 4),
                       // One line, ellipsized — keeps every card the same
                       // height so price rows line up across the grid.
                       SizedBox(
-                        height: 14.5 * 1.25,
+                        height: ProductGridCard._titleHeight(scale),
                         child: Text(
                           product.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 14.5,
+                            fontSize: 13.5,
                             height: 1.25,
                             fontWeight: FontWeight.w500,
                             letterSpacing: -0.1,
@@ -199,22 +226,20 @@ class _ProductGridCardState extends State<ProductGridCard> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 5),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           // Old price struck through above the new one, so
-                          // the "-12%" pill has the price it came off. The
-                          // line is kept (empty) on full-price cards so price
-                          // rows still line up across the grid. Both shrink
-                          // rather than truncate — a six-digit price must
-                          // never read as "\$133,399....".
+                          // the "-12%" pill has the price it came off. Both
+                          // shrink rather than truncate — a six-digit price
+                          // must never read as "\$133,399....".
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 SizedBox(
-                                  height: 16,
+                                  height: ProductGridCard._strikeHeight(scale),
                                   child: product.referencePrice > product.price
                                       ? FittedBox(
                                           fit: BoxFit.scaleDown,
@@ -223,7 +248,7 @@ class _ProductGridCardState extends State<ProductGridCard> {
                                             formatPrice(product.referencePrice),
                                             maxLines: 1,
                                             style: TextStyle(
-                                              fontSize: 12,
+                                              fontSize: 11,
                                               fontWeight: FontWeight.w500,
                                               color: AppColors.muted,
                                               decoration: TextDecoration.lineThrough,
@@ -240,7 +265,7 @@ class _ProductGridCardState extends State<ProductGridCard> {
                                     formatPrice(product.price),
                                     maxLines: 1,
                                     style: TextStyle(
-                                      fontSize: 17,
+                                      fontSize: 16,
                                       fontWeight: FontWeight.w800,
                                       letterSpacing: -0.3,
                                       color: AppColors.inkStrong,
@@ -250,7 +275,7 @@ class _ProductGridCardState extends State<ProductGridCard> {
                               ],
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           _buildAddButton(product),
                         ],
                       ),
@@ -303,11 +328,11 @@ class _ProductGridCardState extends State<ProductGridCard> {
               : fallback,
         ),
         if (!product.inStock) ColoredBox(color: AppColors.card.withValues(alpha: 0.45)),
-        if (badge != null) Positioned(top: 10, left: 10, child: badge),
+        if (badge != null) Positioned(top: 8, left: 8, child: badge),
         if (!product.inStock)
           Positioned(
-            bottom: 10,
-            left: 10,
+            bottom: 8,
+            left: 8,
             child: _Badge(
               label: 'Out of stock',
               background: AppColors.inkStrong.withValues(alpha: 0.8),
@@ -315,8 +340,8 @@ class _ProductGridCardState extends State<ProductGridCard> {
             ),
           ),
         Positioned(
-          top: 8,
-          right: 8,
+          top: 6,
+          right: 6,
           child: Material(
             color: AppColors.card,
             shape: const CircleBorder(),
@@ -325,8 +350,8 @@ class _ProductGridCardState extends State<ProductGridCard> {
               onTap: _busy ? null : _toggleWishlist,
               customBorder: const CircleBorder(),
               child: SizedBox(
-                width: 34,
-                height: 34,
+                width: 30,
+                height: 30,
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 220),
                   transitionBuilder: (child, animation) => ScaleTransition(
@@ -336,7 +361,7 @@ class _ProductGridCardState extends State<ProductGridCard> {
                   child: Icon(
                     _wishlisted ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                     key: ValueKey(_wishlisted),
-                    size: 17,
+                    size: 16,
                     color: _wishlisted ? AppColors.sale : AppColors.inkStrong,
                   ),
                 ),
@@ -366,7 +391,7 @@ class _ProductGridCardState extends State<ProductGridCard> {
       icon = Icon(
         Icons.add_rounded,
         key: const ValueKey('add'),
-        size: 20,
+        size: 18,
         color: product.inStock ? AppColors.inkStrong : AppColors.muted,
       );
     }
@@ -378,8 +403,8 @@ class _ProductGridCardState extends State<ProductGridCard> {
         onTap: enabled ? _addToCart : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          width: 36,
-          height: 36,
+          width: 32,
+          height: 32,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
@@ -411,7 +436,7 @@ class _Badge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(999),
@@ -419,7 +444,7 @@ class _Badge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.1, color: foreground),
+        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, letterSpacing: 0.1, color: foreground),
       ),
     );
   }
@@ -446,10 +471,10 @@ class _DiscountPill extends StatelessWidget {
   }
 }
 
-/// Two-column grid for [ProductGridCard] where every tile is exactly its
-/// width plus [infoHeight] tall — so the (square) product photo is drawn
-/// square on any screen width, instead of being cropped by a fixed aspect
-/// ratio that only fits one phone.
+/// Two-column grid for [ProductGridCard] where every tile is the photo's
+/// height plus [infoHeight] — so the photo keeps the same shape on any
+/// screen width, instead of being cropped by a fixed aspect ratio that only
+/// fits one phone.
 class ProductGridDelegate extends SliverGridDelegate {
   final double infoHeight;
   final double spacing;
@@ -464,7 +489,7 @@ class ProductGridDelegate extends SliverGridDelegate {
   @override
   SliverGridLayout getLayout(SliverConstraints constraints) {
     final tileWidth = (constraints.crossAxisExtent - spacing) / 2;
-    final tileHeight = tileWidth + infoHeight;
+    final tileHeight = tileWidth * ProductGridCard.imageAspect + infoHeight;
     return SliverGridRegularTileLayout(
       crossAxisCount: 2,
       mainAxisStride: tileHeight + spacing,

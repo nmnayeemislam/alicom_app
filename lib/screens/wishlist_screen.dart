@@ -5,6 +5,8 @@ import '../state/wishlist_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/product_grid_card.dart';
 import '../widgets/state_views.dart';
+import '../widgets/notification_bell.dart';
+import '../widgets/tab_app_bar.dart';
 import 'login_screen.dart';
 
 /// Saved products, in the same two-column [ProductGridCard] grid as Home
@@ -46,17 +48,9 @@ class _WishlistScreenState extends State<WishlistScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final canPop = Navigator.of(context).canPop();
-    final appBar = AppBar(
-      title: const Text('Wishlist'),
-      centerTitle: true,
-      automaticallyImplyLeading: false,
-      leading: canPop
-          ? IconButton(
-              icon: const Icon(Icons.arrow_back_rounded),
-              onPressed: () => Navigator.of(context).pop(),
-            )
-          : null,
+    final appBar = TabAppBar(
+      title: 'Wishlist',
+      action: const NotificationBell(),
     );
 
     return ListenableBuilder(

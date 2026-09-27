@@ -15,6 +15,7 @@ import '../state/locale_state.dart';
 import '../state/referral_state.dart';
 import '../state/theme_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/tab_app_bar.dart';
 import '../widgets/referral_card.dart';
 import 'addresses_screen.dart';
 import 'blog_list_screen.dart';
@@ -287,30 +288,24 @@ class _AccountScreenState extends State<AccountScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        title: const Text('Profile'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: ListenableBuilder(
-              listenable: AuthState.instance,
-              builder: (context, _) => _RoundMenuButton(
-                isAuthenticated: AuthState.instance.isAuthenticated,
-                onSelected: (action) {
-                  switch (action) {
-                    case _ProfileMenuAction.editProfile:
-                      _push(const EditProfileScreen());
-                    case _ProfileMenuAction.notifications:
-                      _push(const NotificationsScreen());
-                    case _ProfileMenuAction.logout:
-                      _confirmLogout();
-                  }
-                },
-              ),
-            ),
+      appBar: TabAppBar(
+        title: 'Profile',
+        action: ListenableBuilder(
+          listenable: AuthState.instance,
+          builder: (context, _) => _RoundMenuButton(
+            isAuthenticated: AuthState.instance.isAuthenticated,
+            onSelected: (action) {
+              switch (action) {
+                case _ProfileMenuAction.editProfile:
+                  _push(const EditProfileScreen());
+                case _ProfileMenuAction.notifications:
+                  _push(const NotificationsScreen());
+                case _ProfileMenuAction.logout:
+                  _confirmLogout();
+              }
+            },
           ),
-        ],
+        ),
       ),
       body: ListenableBuilder(
         listenable: AuthState.instance,
@@ -524,15 +519,7 @@ class _RoundMenuButton extends StatelessWidget {
             child: Text('Log out', style: TextStyle(color: Color(0xFFE0796B))),
           ),
       ],
-      child: Material(
-        color: AppColors.card,
-        shape: CircleBorder(side: BorderSide(color: AppColors.line)),
-        child: SizedBox(
-          width: 44,
-          height: 44,
-          child: Icon(Icons.more_vert_rounded, size: 21, color: AppColors.inkStrong),
-        ),
-      ),
+      child: const RoundAppBarButton(icon: Icons.more_vert_rounded),
     );
   }
 }

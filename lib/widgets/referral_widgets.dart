@@ -220,7 +220,11 @@ class PointsProgress extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               l10n.pointsBalance,
-              style: TextStyle(fontSize: 13, color: AppColors.body),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.bodyStrong,
+              ),
             ),
             const Spacer(),
             Text(
@@ -229,37 +233,75 @@ class PointsProgress extends StatelessWidget {
                 formatPoints(context, stats.redeemThreshold),
               ),
               style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
                 color: AppColors.inkStrong,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: LinearProgressIndicator(
-            value: stats.progress,
-            minHeight: 8,
-            backgroundColor: AppColors.line,
-            valueColor: AlwaysStoppedAnimation(AppColors.primary),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          stats.canRedeem
-              ? l10n.couponReadyToRedeem(percent)
-              : l10n.pointsToNextCoupon(
-                  formatPoints(context, stats.pointsToNextCoupon),
-                  percent,
+        const SizedBox(height: 9),
+        // Animates from empty on first paint, and again whenever redeeming
+        // or a new reward moves the balance.
+        TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: stats.progress.clamp(0.0, 1.0)),
+          duration: const Duration(milliseconds: 650),
+          curve: Curves.easeOutCubic,
+          builder: (context, value, _) => ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: Stack(
+              children: [
+                Container(height: 10, color: AppColors.line),
+                FractionallySizedBox(
+                  widthFactor: value,
+                  child: Container(
+                    height: 10,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(999),
+                      gradient: LinearGradient(
+                        colors: [AppColors.primaryLight, AppColors.primary],
+                      ),
+                    ),
+                  ),
                 ),
-          style: TextStyle(
-            fontSize: 12.5,
-            color: stats.canRedeem ? AppColors.primary : AppColors.muted,
-            fontWeight: stats.canRedeem ? FontWeight.w700 : FontWeight.w500,
+              ],
+            ),
           ),
         ),
+        const SizedBox(height: 8),
+        if (stats.canRedeem)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.primarySoft,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.celebration_rounded, size: 14, color: AppColors.primary),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(
+                    l10n.couponReadyToRedeem(percent),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          Text(
+            l10n.pointsToNextCoupon(
+              formatPoints(context, stats.pointsToNextCoupon),
+              percent,
+            ),
+            style: TextStyle(fontSize: 12.5, color: AppColors.muted),
+          ),
       ],
     );
   }

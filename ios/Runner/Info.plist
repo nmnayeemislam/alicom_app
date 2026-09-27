@@ -71,7 +71,12 @@
 		</dict>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
-		<key>UILaunchStoryboardName</key>
+		<!-- Lets a push wake the app to run the background handler. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+	<key>UILaunchStoryboardName</key>
 		<string>LaunchScreen</string>
 		<key>UIMainStoryboardFile</key>
 		<string>Main</string>

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "815807319026",
+    "project_id": "alicom-new",
+    "storage_bucket": "alicom-new.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:815807319026:android:dfdfbef4182cce2698b96b",
+        "android_client_info": {
+          "package_name": "com.alicom.razinsoft"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC5xCXbj8_fWWiNAokiQ7PfZO30r_sgzPk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

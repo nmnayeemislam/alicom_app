@@ -48,10 +48,14 @@ class ApiClient {
   late final Dio _dio;
   Dio get dio => _dio;
 
+  /// [options] is for the odd call that is not JSON — the invoice PDF asks
+  /// for `ResponseType.bytes` — so those still go through the shared token
+  /// interceptor and error mapping.
   Future<Response<T>> get<T>(
     String path, {
     Map<String, dynamic>? queryParameters,
-  }) => _run(() => _dio.get<T>(path, queryParameters: queryParameters));
+    Options? options,
+  }) => _run(() => _dio.get<T>(path, queryParameters: queryParameters, options: options));
 
   Future<Response<T>> post<T>(
     String path, {

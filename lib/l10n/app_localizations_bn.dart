@@ -263,4 +263,73 @@ class AppLocalizationsBn extends AppLocalizations {
 
   @override
   String get languageBangla => 'বাংলা';
+
+  @override
+  String get onboardTitle1 => 'ট্রেন্ড খুঁজুন, কিনুন';
+
+  @override
+  String get onboardBody1 =>
+      'নতুন পণ্য, সবচেয়ে বেশি বিক্রি হওয়া আইটেম আর সেরা অফার — সবই এক জায়গায়।';
+
+  @override
+  String get onboardTitle2 => 'প্রতি অর্ডারে পুরস্কার';
+
+  @override
+  String get onboardBody2 =>
+      'কেনাকাটায় পয়েন্ট জমান, বন্ধুদের আমন্ত্রণ জানান, আর দুটোকেই বদলে নিন বিশেষ ছাড়ে।';
+
+  @override
+  String get onboardTitle3 => 'পৌঁছে যাবে আপনার ঘরে';
+
+  @override
+  String get onboardBody3 =>
+      'অর্ডার থেকে দরজা পর্যন্ত পার্সেল ট্র্যাক করুন, আর পছন্দমতো উপায়ে পেমেন্ট করুন।';
+
+  @override
+  String get onboardSkip => 'এড়িয়ে যান';
+
+  @override
+  String get onboardNext => 'পরবর্তী';
+
+  @override
+  String get onboardGetStarted => 'শুরু করুন';
+
+  @override
+  String get invoice => 'চালান';
+
+  @override
+  String get invoiceReady => 'চালান প্রস্তুত';
+
+  @override
+  String get invoicePreparing => 'তৈরি হচ্ছে…';
+
+  @override
+  String get invoiceView => 'দেখুন';
+
+  @override
+  String get invoiceNotAvailable => 'এই অর্ডারের চালান পাওয়া যাচ্ছে না।';
+
+  @override
+  String get invoiceFailed =>
+      'চালান নামানো যায়নি। সংযোগ দেখে আবার চেষ্টা করুন।';
+
+  @override
+  String invoiceShareText(String code) {
+    return 'চালান $code';
+  }
+
+  @override
+  String get invoiceDownload => 'চালান ডাউনলোড';
+
+  @override
+  String get invoiceSave => 'ডাউনলোডে সংরক্ষণ';
+
+  @override
+  String invoiceSaved(String name) {
+    return 'Downloads ফোল্ডারে $name নামে সংরক্ষিত হয়েছে';
+  }
+
+  @override
+  String get invoiceSaveFailed =>
+      'ফাইলটি সংরক্ষণ করা যায়নি। বদলে শেয়ার করে দেখুন।';
 }

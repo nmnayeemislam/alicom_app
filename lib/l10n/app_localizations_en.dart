@@ -262,4 +262,73 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get languageBangla => 'বাংলা';
+
+  @override
+  String get onboardTitle1 => 'Discover & shop trends';
+
+  @override
+  String get onboardBody1 =>
+      'Browse a catalogue that keeps up with you — new arrivals, best sellers and the deals worth your time.';
+
+  @override
+  String get onboardTitle2 => 'Rewards on every order';
+
+  @override
+  String get onboardBody2 =>
+      'Collect points as you shop, invite friends, and turn both into member-only discounts.';
+
+  @override
+  String get onboardTitle3 => 'Delivered to your door';
+
+  @override
+  String get onboardBody3 =>
+      'Track your parcel from checkout to doorstep, and pay however suits you best.';
+
+  @override
+  String get onboardSkip => 'Skip';
+
+  @override
+  String get onboardNext => 'Next';
+
+  @override
+  String get onboardGetStarted => 'Get Started';
+
+  @override
+  String get invoice => 'Invoice';
+
+  @override
+  String get invoiceReady => 'Invoice ready';
+
+  @override
+  String get invoicePreparing => 'Preparing…';
+
+  @override
+  String get invoiceView => 'View';
+
+  @override
+  String get invoiceNotAvailable => 'Invoice not available for this order.';
+
+  @override
+  String get invoiceFailed =>
+      'Could not download the invoice. Check your connection and try again.';
+
+  @override
+  String invoiceShareText(String code) {
+    return 'Invoice $code';
+  }
+
+  @override
+  String get invoiceDownload => 'Invoice Download';
+
+  @override
+  String get invoiceSave => 'Save to Downloads';
+
+  @override
+  String invoiceSaved(String name) {
+    return 'Saved to Downloads as $name';
+  }
+
+  @override
+  String get invoiceSaveFailed =>
+      'Could not save the file. Try sharing it instead.';
 }

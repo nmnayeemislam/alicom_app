@@ -17,6 +17,15 @@ class ApiEndpoints {
   static const profile = '/profile';
   static const profileFcmToken = '/profile/fcm-token';
 
+  // Notification inbox (authenticated). Every push the backend sends is
+  // stored here too, so the bell has history even on a device that never
+  // registered for FCM.
+  static const notifications = '/notifications';
+  static const notificationsUnreadCount = '/notifications/unread-count';
+  static const notificationsReadAll = '/notifications/read-all';
+  static String notificationRead(String id) => '/notifications/$id/read';
+  static String notification(String id) => '/notifications/$id';
+
   // Newsletter / contact / activity / search
   static const newsletter = '/newsletter';
   static String newsletterUnsubscribe(String token) => '/newsletter/$token';
@@ -74,6 +83,7 @@ class ApiEndpoints {
   static const myStats = '/my/stats';
   static const myOrders = '/my/orders';
   static String myOrder(int id) => '/my/orders/$id';
+  static String myOrderInvoice(int id) => '/my/orders/$id/invoice';
   static String myOrderCancel(int id) => '/my/orders/$id/cancel';
   static String myOrderRefundRequest(int id) =>
       '/my/orders/$id/refund-request';

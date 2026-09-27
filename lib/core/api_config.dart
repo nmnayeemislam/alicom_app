@@ -21,7 +21,7 @@ class ApiConfig {
 
   static const String _override = String.fromEnvironment('API_BASE_URL');
 
-  static const String _defaultBaseUrl = 'http://127.0.0.1:8000/api';
+  static const String _defaultBaseUrl = 'https://uat-alicom.razinsoft.com/api';
 
   static String get baseUrl => _override.isNotEmpty ? _override : _defaultBaseUrl;
 

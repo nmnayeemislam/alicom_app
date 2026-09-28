@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../core/auth_gate.dart';
 import '../core/money.dart';
 import '../models/product.dart';
 import '../services/catalog_service.dart';
@@ -112,6 +113,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Future<void> _addToCart() async {
     final product = _product;
     if (product == null) return;
+    if (!await requireSignIn(context, reason: 'Sign in to add items to your cart.')) return;
+    if (!mounted) return;
     try {
       await CartState.instance.addProduct(product, quantity: _quantity);
       if (mounted) {
@@ -131,12 +134,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Future<void> _toggleWishlist() async {
     final id = _product?.id;
     if (id == null || _wishlistBusy) return;
-    if (!AuthState.instance.isAuthenticated) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sign in to save items to your wishlist.')),
-      );
-      return;
-    }
+    // Was a dead-end snackbar; now it offers the way out of it.
+    if (!await requireSignIn(context, reason: 'Sign in to save items to your wishlist.')) return;
+    if (!mounted) return;
     setState(() => _wishlistBusy = true);
     try {
       final wishlisted = await WishlistState.instance.toggle(_product!);

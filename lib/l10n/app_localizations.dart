@@ -733,6 +733,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Phone (optional)'**
   String get fieldPhoneOptional;
+
+  /// No description provided for @registerCodeSentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'We sent a 6-digit code to'**
+  String get registerCodeSentLabel;
 }
 
 class _AppLocalizationsDelegate

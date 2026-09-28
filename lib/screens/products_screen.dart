@@ -505,11 +505,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleMedium,
                   )
+                // The brand wordmark told the customer nothing about where
+                // they were; the screen's own name does.
                 : Text(
-                    'ALICOM',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          letterSpacing: 3,
-                        ),
+                    'Products',
+                    style: Theme.of(context).textTheme.titleMedium,
                     textAlign: TextAlign.center,
                   ),
         centerTitle: !_searching,
@@ -610,7 +610,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final query = _searchController.text.trim();
     final categoryName = _selectedCategoryName;
 
-    final String title;
+    final String? title;
     final String subtitle;
     if (query.isNotEmpty) {
       title = 'Results for “$query”';
@@ -619,7 +619,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
       title = categoryName;
       subtitle = 'Everything we carry in $categoryName';
     } else {
-      title = 'All Products';
+      // The app bar already reads "Products"; repeating it here would just
+      // push the grid down.
+      title = null;
       subtitle = 'Browse the full catalogue';
     }
 
@@ -629,7 +631,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final count = _total ?? _products.length;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -637,18 +639,20 @@ class _ProductsScreenState extends State<ProductsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.4,
-                    color: AppColors.inkStrong,
+                if (title != null) ...[
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.4,
+                      color: AppColors.inkStrong,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
+                  const SizedBox(height: 4),
+                ],
                 Text(
                   subtitle,
                   maxLines: 1,

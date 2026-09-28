@@ -319,9 +319,6 @@ class _NotificationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final unread = !notification.isRead;
-    final (icon, tint) = notification.isOrder
-        ? (Icons.receipt_long_rounded, AppColors.primary)
-        : (Icons.campaign_rounded, const Color(0xFFC98A00));
 
     return Material(
       color: unread ? AppColors.accentSoft.withValues(alpha: 0.45) : AppColors.card,
@@ -337,14 +334,20 @@ class _NotificationTile extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // The shop's own mark rather than a generic glyph — every row
+              // here comes from Alicom, and the title already says whether
+              // it is an order or an offer. Kept on white because the mark's
+              // cut-out is transparent and would fill with any tint behind it.
               Container(
                 width: 40,
                 height: 40,
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: tint.withValues(alpha: 0.12),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(13),
+                  border: Border.all(color: AppColors.line),
                 ),
-                child: Icon(icon, size: 20, color: tint),
+                child: Image.asset('assets/icons/app_icon.png', fit: BoxFit.contain),
               ),
               const SizedBox(width: 12),
               Expanded(

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../screens/login_screen.dart';
+import '../core/auth_gate.dart';
 import '../screens/notifications_screen.dart';
 import '../state/auth_state.dart';
 import '../state/notification_state.dart';
@@ -12,12 +12,13 @@ import 'tab_app_bar.dart';
 class NotificationBell extends StatelessWidget {
   const NotificationBell({super.key});
 
-  static void open(BuildContext context) {
-    final signedIn = AuthState.instance.isAuthenticated;
+  /// A guest signs in first, then lands on the inbox they were after —
+  /// rather than being dropped back where they started.
+  static Future<void> open(BuildContext context) async {
+    if (!await requireSignIn(context, reason: 'Sign in to see your notifications.')) return;
+    if (!context.mounted) return;
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => signedIn ? const NotificationsScreen() : const LoginScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const NotificationsScreen()),
     );
   }
 

@@ -104,6 +104,14 @@ class AuthState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Deletes the account for good, then leaves the app signed out.
+  Future<void> deleteAccount(String password) async {
+    await AuthService.instance.deleteAccount(password);
+    await PushNotifications.instance.onSignedOut();
+    user = null;
+    notifyListeners();
+  }
+
   Future<void> logout() async {
     await AuthService.instance.logout();
     // The backend keeps one FCM token per user and does not clear it on

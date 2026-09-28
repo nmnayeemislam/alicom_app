@@ -1,5 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -28,7 +31,10 @@ Future<void> _onBackgroundMessage(RemoteMessage message) async {}
 ///   - order status — `data.order_id` + `data.status`; tapping opens that
 ///     order;
 ///   - admin broadcast — optional `data.link` (a URL or in-app path) and
-///     `data.image` (a storage path, not a URL).
+///     an image: `notification.image` / `data.image_url` (absolute URLs;
+///     `data.image` is the raw storage path). In the background the system
+///     draws the picture itself; in the foreground [_onForegroundMessage]
+///     downloads it and shows it as a big picture.
 ///
 /// Everything here fails soft: a device without Play Services, a denied
 /// permission or a missing Firebase config leaves the rest of the app
@@ -184,6 +190,8 @@ class PushNotifications {
     NotificationState.instance.refresh();
     final notification = message.notification;
     if (notification == null) return;
+    final imageUrl = _imageUrlOf(message);
+    final image = imageUrl == null ? null : await _download(imageUrl);
     try {
       await _local.show(
         id: notification.hashCode,
@@ -198,13 +206,78 @@ class PushNotifications {
             priority: Priority.high,
             icon: '@drawable/ic_notification',
             color: const Color(0xFF22A699),
+            largeIcon: image == null ? null : ByteArrayAndroidBitmap(image),
+            styleInformation: image == null
+                ? null
+                : BigPictureStyleInformation(
+                    ByteArrayAndroidBitmap(image),
+                    contentTitle: notification.title,
+                    summaryText: notification.body,
+                    // Collapsed: thumbnail on the right; expanded: the
+                    // picture alone, not the thumbnail beside it again.
+                    hideExpandedLargeIcon: true,
+                  ),
           ),
-          iOS: const DarwinNotificationDetails(),
+          iOS: DarwinNotificationDetails(
+            attachments: image == null ? null : await _iosAttachment(image, imageUrl!),
+          ),
         ),
         payload: jsonEncode(message.data),
       );
     } catch (error) {
       debugPrint('Could not show the notification: $error');
+    }
+  }
+
+  /// Where the push's picture is, if it has one.
+  String? _imageUrlOf(RemoteMessage message) {
+    final candidates = [
+      message.notification?.android?.imageUrl,
+      message.notification?.apple?.imageUrl,
+      message.data['image_url'],
+    ];
+    for (final candidate in candidates) {
+      final url = '${candidate ?? ''}'.trim();
+      if (url.startsWith('http')) return url;
+    }
+    return null;
+  }
+
+  /// The picture's bytes, or null — a missing or slow image must never stop
+  /// the notification itself from showing.
+  Future<Uint8List?> _download(String url) async {
+    try {
+      final response = await Dio().get<List<int>>(
+        url,
+        options: Options(
+          responseType: ResponseType.bytes,
+          receiveTimeout: const Duration(seconds: 8),
+          sendTimeout: const Duration(seconds: 8),
+        ),
+      );
+      final bytes = response.data;
+      return bytes == null || bytes.isEmpty ? null : Uint8List.fromList(bytes);
+    } catch (error) {
+      debugPrint('Could not load the notification image: $error');
+      return null;
+    }
+  }
+
+  /// iOS attaches pictures from a file, so the bytes go to the temp folder.
+  Future<List<DarwinNotificationAttachment>?> _iosAttachment(Uint8List bytes, String url) async {
+    if (!Platform.isIOS) return null;
+    try {
+      final path = Uri.parse(url).path.toLowerCase();
+      final ext = path.endsWith('.png')
+          ? 'png'
+          : path.endsWith('.gif')
+              ? 'gif'
+              : 'jpg';
+      final file = File('${Directory.systemTemp.path}/push_${DateTime.now().millisecondsSinceEpoch}.$ext');
+      await file.writeAsBytes(bytes);
+      return [DarwinNotificationAttachment(file.path)];
+    } catch (_) {
+      return null;
     }
   }
 

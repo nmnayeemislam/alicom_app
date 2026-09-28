@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../core/api_config.dart';
 import '../core/api_exception.dart';
+import '../core/auth_gate.dart';
 import '../core/money.dart';
 import '../services/commerce_service.dart';
 import '../state/cart_state.dart';
@@ -220,9 +221,15 @@ class _CartScreenState extends State<CartScreen> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
                 child: ElevatedButton(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => CheckoutScreen(initialCoupon: _appliedPromo)),
-                  ),
+                  // The cart lives on the customer's account, so checkout
+                  // needs one too — the same gate the add button uses.
+                  onPressed: () async {
+                    if (!await requireSignIn(context, reason: 'Sign in to check out.')) return;
+                    if (!context.mounted) return;
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => CheckoutScreen(initialCoupon: _appliedPromo)),
+                    );
+                  },
                   style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(54)),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,

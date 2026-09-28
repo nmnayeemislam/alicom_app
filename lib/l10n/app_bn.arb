@@ -105,5 +105,6 @@
   "registerCodeResent": "নতুন কোড পাঠানো হয়েছে।",
   "fieldFullName": "পুরো নাম",
   "fieldEmail": "ই-মেইল",
-  "fieldPhoneOptional": "ফোন (ঐচ্ছিক)"
+  "fieldPhoneOptional": "ফোন (ঐচ্ছিক)",
+  "registerCodeSentLabel": "৬ সংখ্যার কোড পাঠানো হয়েছে"
 }

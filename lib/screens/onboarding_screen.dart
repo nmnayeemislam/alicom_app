@@ -230,46 +230,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 physics: const ClampingScrollPhysics(),
                 // Centred so the copy sits between the photo and the CTA
                 // instead of leaving a gap under it on tall screens.
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 280),
-                  // A short slide up as the copy is replaced, so the text
-                  // reads as following the swipe.
-                  transitionBuilder: (child, animation) => FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(
-                      position: Tween(
-                        begin: const Offset(0, 0.06),
-                        end: Offset.zero,
-                      ).animate(animation),
-                      child: child,
-                    ),
-                  ),
-                  child: Column(
-                    key: ValueKey(_index),
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        page.title(l10n),
-                        style: GoogleFonts.interTight(
-                          fontSize: 27,
-                          height: 1.2,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.6,
-                          color: AppColors.inkStrong,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        page.body(l10n),
-                        style: TextStyle(
-                          fontSize: 14.5,
-                          height: 1.55,
-                          color: AppColors.body,
-                        ),
-                      ),
-                    ],
-                    ),
-                  ),
+                child: _AnimatedCopy(
+                  // Re-keyed per page, so the widget rebuilds and replays
+                  // its entrance instead of the text simply swapping.
+                  key: ValueKey(_index),
+                  title: page.title(l10n),
+                  body: page.body(l10n),
+                ),
                 ),
               ),
             ),
@@ -346,6 +313,85 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The headline and the line under it, sliding up into place one after the
+/// other whenever the page changes.
+///
+/// Staggered on purpose: both arriving together reads as one block moving,
+/// while a short gap between them makes the eye follow the headline first.
+class _AnimatedCopy extends StatefulWidget {
+  final String title;
+  final String body;
+
+  const _AnimatedCopy({super.key, required this.title, required this.body});
+
+  @override
+  State<_AnimatedCopy> createState() => _AnimatedCopyState();
+}
+
+class _AnimatedCopyState extends State<_AnimatedCopy> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 620),
+  )..forward();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  /// Fade plus a lift, over [begin]–[end] of the controller's run.
+  Widget _entrance({required double begin, required double end, required Widget child}) {
+    final curved = CurvedAnimation(
+      parent: _controller,
+      curve: Interval(begin, end, curve: Curves.easeOutCubic),
+    );
+    return FadeTransition(
+      opacity: curved,
+      child: SlideTransition(
+        position: Tween(begin: const Offset(0, 0.35), end: Offset.zero).animate(curved),
+        child: child,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _entrance(
+          begin: 0,
+          end: 0.65,
+          child: Text(
+            widget.title,
+            style: GoogleFonts.interTight(
+              fontSize: 27,
+              height: 1.2,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.6,
+              color: AppColors.inkStrong,
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        _entrance(
+          begin: 0.25,
+          end: 1,
+          child: Text(
+            widget.body,
+            style: TextStyle(
+              fontSize: 14.5,
+              height: 1.55,
+              color: AppColors.body,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

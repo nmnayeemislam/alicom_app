@@ -603,23 +603,53 @@ class _RegisterScreenState extends State<RegisterScreen> {
   /// Step two — the emailed code, and nothing else to get wrong.
   List<Widget> _verifyUi() {
     final l10n = AppLocalizations.of(context);
+    final email = _emailController.text.trim();
     return [
       Container(
-        padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+        padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
         decoration: BoxDecoration(
           color: AppColors.accentSoft,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.18)),
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.mark_email_unread_outlined, size: 20, color: AppColors.primary),
-            const SizedBox(width: 10),
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(Icons.mark_email_unread_outlined, size: 19, color: AppColors.primary),
+            ),
+            const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                l10n.registerCodeSentTo(_emailController.text.trim()),
-                style: TextStyle(fontSize: 13, height: 1.35, color: AppColors.bodyStrong),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.registerCodeSentLabel,
+                    style: TextStyle(fontSize: 12.5, color: AppColors.body),
+                  ),
+                  const SizedBox(height: 2),
+                  // The address on its own line: it is the one thing worth
+                  // double-checking before waiting for an e-mail.
+                  Text(
+                    email,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.inkStrong,
+                    ),
+                  ),
+                ],
               ),
             ),
+            const SizedBox(width: 6),
             TextButton(
               // Back to the details, where the address can be corrected.
               onPressed: _isSubmitting
@@ -629,37 +659,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         _fieldErrors = {};
                         _error = null;
                       }),
-              style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
               child: Text(l10n.registerChangeEmail),
             ),
           ],
         ),
       ),
-      const SizedBox(height: 18),
-      TextFormField(
+      const SizedBox(height: 22),
+      _OtpBoxes(
         controller: _otpController,
+        errorText: _fieldErrors['otp'],
+        enabled: !_isSubmitting,
         onChanged: (_) => _clearFieldError('otp'),
-        keyboardType: TextInputType.number,
-        autofocus: true,
-        maxLength: 6,
-        textAlign: TextAlign.center,
-        // Lets the OS drop the code straight in from the e-mail.
-        autofillHints: const [AutofillHints.oneTimeCode],
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: 10),
-        decoration: InputDecoration(
-          labelText: l10n.registerCodeLabel,
-          counterText: '',
-          errorText: _fieldErrors['otp'],
-        ),
+        onCompleted: _submit,
       ),
-      const SizedBox(height: 4),
-      Align(
-        alignment: Alignment.centerLeft,
-        child: TextButton(
-          onPressed: (_resendIn > 0 || _isSubmitting) ? null : () => _sendCode(isResend: true),
-          child: Text(_resendIn > 0 ? l10n.registerResendIn(_resendIn) : l10n.registerResendCode),
-        ),
+      const SizedBox(height: 14),
+      Center(
+        child: _resendIn > 0
+            ? Text(
+                l10n.registerResendIn(_resendIn),
+                style: TextStyle(fontSize: 13, color: AppColors.muted),
+              )
+            : TextButton.icon(
+                onPressed: _isSubmitting ? null : () => _sendCode(isResend: true),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: Text(l10n.registerResendCode),
+              ),
       ),
       if (_error != null) ...[
         const SizedBox(height: 10),
@@ -692,6 +720,158 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Six boxes for a six-digit code.
+///
+/// One real (invisible) field sits over the row and holds the whole code,
+/// so paste, backspace and the OS's one-time-code autofill all behave the
+/// way they do in any other text field — six separate fields each break at
+/// least one of those.
+class _OtpBoxes extends StatefulWidget {
+  final TextEditingController controller;
+  final String? errorText;
+  final bool enabled;
+  final ValueChanged<String>? onChanged;
+
+  /// Fired once the sixth digit lands, so the customer does not have to
+  /// reach for the button.
+  final VoidCallback? onCompleted;
+
+  const _OtpBoxes({
+    required this.controller,
+    this.errorText,
+    this.enabled = true,
+    this.onChanged,
+    this.onCompleted,
+  });
+
+  @override
+  State<_OtpBoxes> createState() => _OtpBoxesState();
+}
+
+class _OtpBoxesState extends State<_OtpBoxes> {
+  static const _length = 6;
+  final _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onChanged);
+    _focusNode.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onChanged);
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _onChanged() {
+    setState(() {});
+    final code = widget.controller.text;
+    widget.onChanged?.call(code);
+    if (code.length == _length) {
+      _focusNode.unfocus();
+      widget.onCompleted?.call();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final code = widget.controller.text;
+    final hasError = widget.errorText != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Stack(
+          children: [
+            Row(
+              children: [
+                for (var i = 0; i < _length; i++) ...[
+                  if (i > 0) const SizedBox(width: 8),
+                  Expanded(child: _box(i, code, hasError)),
+                ],
+              ],
+            ),
+            // The field that actually holds the code, stretched over the
+            // boxes so a tap anywhere opens the keyboard.
+            Positioned.fill(
+              child: TextField(
+                controller: widget.controller,
+                focusNode: _focusNode,
+                enabled: widget.enabled,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                autofillHints: const [AutofillHints.oneTimeCode],
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(_length),
+                ],
+                showCursor: false,
+                enableInteractiveSelection: false,
+                style: const TextStyle(color: Colors.transparent, height: 1),
+                // Every part of the app's input theme is switched off here:
+                // this field is only a keyboard target, the boxes behind it
+                // are what the customer sees.
+                decoration: const InputDecoration(
+                  filled: false,
+                  isDense: true,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  errorBorder: InputBorder.none,
+                  focusedErrorBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                  counterText: '',
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (hasError) ...[
+          const SizedBox(height: 8),
+          Text(
+            widget.errorText!,
+            style: TextStyle(fontSize: 12.5, color: AppColors.sale),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _box(int index, String code, bool hasError) {
+    final filled = index < code.length;
+    // The next empty box is the one being typed into.
+    final isActive = _focusNode.hasFocus && index == code.length.clamp(0, _length - 1);
+    final borderColor = hasError
+        ? AppColors.sale
+        : isActive
+            ? AppColors.primary
+            : AppColors.line;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      height: 58,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: borderColor, width: isActive || hasError ? 2 : 1.2),
+      ),
+      child: Text(
+        filled ? code[index] : '',
+        style: TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.w800,
+          color: AppColors.inkStrong,
         ),
       ),
     );

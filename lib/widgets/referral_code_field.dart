@@ -149,9 +149,9 @@ class _ReferralCodeFieldState extends State<ReferralCodeField> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (_checking)
-              Padding(
+              const Padding(
                 padding: EdgeInsets.only(right: 4),
-                child: AppLoader(size: 46),
+                child: AppLoader(size: 28),
               ),
             IconButton(
               tooltip: l10n.scanQr,

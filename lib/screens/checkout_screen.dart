@@ -1,7 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/api_config.dart';
+import '../core/auth_gate.dart';
 import '../core/api_exception.dart';
 import '../core/money.dart';
 import '../services/commerce_service.dart';
@@ -241,28 +243,35 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final data = (response is Map ? response['data'] ?? response : {}) as Map;
       final order = (data['order'] as Map?) ?? data;
       final orderCode = order['order_code'] as String? ?? order['order_number'] as String?;
+      // An online method (Stripe) comes back with a hosted checkout page.
+      // Cash on delivery has none, and the order is simply placed.
+      final paymentUrl = (data['payment_url'] as String?)?.trim();
 
       await CartState.instance.clear();
 
       if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Order placed'),
-          content: Text(
-            orderCode != null
-                ? 'Your order $orderCode has been placed successfully.'
-                : 'Your order has been placed successfully.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('OK'),
+      if (paymentUrl != null && paymentUrl.isNotEmpty) {
+        await _openPaymentPage(paymentUrl, orderCode);
+      } else {
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Order placed'),
+            content: Text(
+              orderCode != null
+                  ? 'Your order $orderCode has been placed successfully.'
+                  : 'Your order has been placed successfully.',
             ),
-          ],
-        ),
-      );
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const MainShell()),
@@ -277,17 +286,110 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
+  /// Shown when the session ended between filling the cart and paying —
+  /// the order would be rejected, so it is better to say so here.
+  Widget _buildSignedOut() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 84,
+              height: 84,
+              decoration: BoxDecoration(color: AppColors.accentSoft, shape: BoxShape.circle),
+              child: Icon(Icons.lock_outline_rounded, size: 36, color: AppColors.primary),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              'Sign in to check out',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.inkStrong),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Your cart is kept with your account.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, height: 1.45, color: AppColors.muted),
+            ),
+            const SizedBox(height: 18),
+            ElevatedButton(
+              onPressed: () async {
+                if (!await requireSignIn(context)) return;
+                if (!mounted) return;
+                // Prefill from the account that just signed in, then fetch
+                // the delivery zones the form needs.
+                _phoneController.text = AuthState.instance.user?.phone ?? '';
+                _nameController.text = AuthState.instance.user?.name ?? '';
+                _loadOptions();
+              },
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(190, 48),
+                shape: const StadiumBorder(),
+              ),
+              child: const Text('Sign In'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Hands the customer to the payment provider's own page.
+  ///
+  /// Opened in an in-app browser tab (Custom Tabs on Android, Safari View
+  /// on iOS) rather than a WebView: card fields and 3-D Secure belong in
+  /// the system browser, and the customer can see the real URL and padlock.
+  ///
+  /// Whether the payment succeeded is the backend's to know — Stripe tells
+  /// it by webhook — so the app sends the customer to the order, where the
+  /// payment status is shown, instead of guessing from the browser closing.
+  Future<void> _openPaymentPage(String url, String? orderCode) async {
+    final uri = Uri.tryParse(url);
+    var opened = false;
+    if (uri != null) {
+      try {
+        opened = await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+      } catch (_) {
+        opened = false;
+      }
+    }
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(opened ? 'Finish your payment' : 'Order placed'),
+        content: Text(
+          opened
+              ? 'Order ${orderCode ?? ''} is waiting for payment. Once you have paid, '
+                  'the status updates on the order page.'
+              : 'Order ${orderCode ?? ''} was placed, but the payment page could not be '
+                  'opened. You can pay from the order page.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'ALICOM',
-          style: TextStyle(letterSpacing: 3, fontWeight: FontWeight.w700),
-        ),
+        // The screen's own name. The brand wordmark said nothing about
+        // where the customer was in the flow.
+        title: const Text('Checkout'),
         centerTitle: true,
       ),
-      body: _isLoadingOptions
+      body: !AuthState.instance.isAuthenticated
+          ? _buildSignedOut()
+          : _isLoadingOptions
           ? const LoadingView()
           : _loadError != null
           ? ErrorView(message: _loadError!, onRetry: _loadOptions)
@@ -300,6 +402,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   children: [
                     _SectionCard(
                       title: 'Delivery Details',
+                      icon: Icons.local_shipping_outlined,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -338,27 +441,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     const SizedBox(height: 16),
                     _SectionCard(
                       title: 'Payment Method',
+                      icon: Icons.account_balance_wallet_outlined,
                       child: Column(
-                        children: _paymentMethods
-                            .map(
-                              (method) => RadioListTile<String>(
-                                value: method.code,
-                                // ignore: deprecated_member_use
-                                groupValue: _selectedPaymentMethod,
-                                // ignore: deprecated_member_use
-                                onChanged: (value) => setState(() => _selectedPaymentMethod = value!),
-                                title: Text(method.label),
-                                activeColor: AppColors.accent,
-                                contentPadding: EdgeInsets.zero,
-                                dense: true,
-                              ),
-                            )
-                            .toList(),
+                        children: [
+                          for (final method in _paymentMethods) ...[
+                            if (method != _paymentMethods.first) const SizedBox(height: 10),
+                            _PaymentOption(
+                              label: method.label,
+                              selected: _selectedPaymentMethod == method.code,
+                              onTap: () => setState(() => _selectedPaymentMethod = method.code),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                     const SizedBox(height: 16),
                     _SectionCard(
                       title: 'Coupon & Notes',
+                      icon: Icons.local_offer_outlined,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -371,11 +471,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 ),
                               ),
                               const SizedBox(width: 10),
-                              OutlinedButton(
-                                onPressed: _isCheckingCoupon ? null : _applyCoupon,
-                                child: _isCheckingCoupon
-                                    ? AppLoader(size: 46)
-                                    : const Text('Apply'),
+                              SizedBox(
+                                // Same height as the field beside it, so the
+                                // two do not sit on different baselines.
+                                height: 56,
+                                child: OutlinedButton(
+                                  onPressed: _isCheckingCoupon ? null : _applyCoupon,
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                                  ),
+                                  child: _isCheckingCoupon
+                                      ? const AppLoader(size: 46)
+                                      : const Text('Apply'),
+                                ),
                               ),
                             ],
                           ),
@@ -404,6 +512,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     const SizedBox(height: 16),
                     _SectionCard(
                       title: 'Order Summary',
+                      icon: Icons.receipt_long_outlined,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -501,28 +610,60 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
 class _SectionCard extends StatelessWidget {
   final String title;
+  final IconData icon;
   final Widget child;
-  const _SectionCard({required this.title, required this.child});
+
+  const _SectionCard({required this.title, required this.icon, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    // Material, not a decorated Container: the payment RadioListTiles paint
-    // their ink on the nearest Material, which a plain colored box hides.
-    return Material(
-      color: AppColors.card,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: BorderSide(color: AppColors.line),
+    // Material, not a decorated Container: the payment tiles paint their
+    // ink on the nearest Material, which a plain coloured box hides.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 16, offset: const Offset(0, 6)),
+        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 14),
-            child,
-          ],
+      child: Material(
+        color: AppColors.card,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: AppColors.line),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: AppColors.accentSoft,
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Icon(icon, size: 18, color: AppColors.primary),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
+                      color: AppColors.inkStrong,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              child,
+            ],
+          ),
         ),
       ),
     );
@@ -559,6 +700,57 @@ class _SummaryRow extends StatelessWidget {
           else
             Text(formatPrice(value), style: style),
         ],
+      ),
+    );
+  }
+}
+
+/// One payment method, as a tile that reads as chosen — a bare radio in a
+/// list gave no sense of which row was selected until you looked closely.
+class _PaymentOption extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _PaymentOption({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? AppColors.accentSoft.withValues(alpha: 0.5) : AppColors.card,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(
+          color: selected ? AppColors.primary : AppColors.line,
+          width: selected ? 1.8 : 1.2,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          child: Row(
+            children: [
+              Icon(
+                selected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+                size: 20,
+                color: selected ? AppColors.primary : AppColors.lineStrong,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    color: AppColors.inkStrong,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

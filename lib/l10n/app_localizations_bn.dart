@@ -383,4 +383,7 @@ class AppLocalizationsBn extends AppLocalizations {
 
   @override
   String get fieldPhoneOptional => 'ফোন (ঐচ্ছিক)';
+
+  @override
+  String get registerCodeSentLabel => '৬ সংখ্যার কোড পাঠানো হয়েছে';
 }

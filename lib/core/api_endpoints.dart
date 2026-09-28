@@ -18,6 +18,8 @@ class ApiEndpoints {
   static const logout = '/logout';
   static const profile = '/profile';
   static const profileFcmToken = '/profile/fcm-token';
+  /// Permanent account erasure; needs the current password.
+  static const deleteAccount = '/my/account';
 
   // Notification inbox (authenticated). Every push the backend sends is
   // stored here too, so the bell has history even on a device that never

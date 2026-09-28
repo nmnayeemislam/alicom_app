@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -24,6 +25,7 @@ import 'contact_screen.dart';
 import 'coupons_screen.dart';
 import 'edit_profile_screen.dart';
 import 'login_screen.dart';
+import 'main_shell.dart';
 import 'notifications_screen.dart';
 import 'order_detail_screen.dart';
 import 'order_tracking_screen.dart';
@@ -188,6 +190,24 @@ class _AccountScreenState extends State<AccountScreen> {
     // Signing out talks to the API and deletes the push token, so it is
     // slow enough to need a visible wait — and must not be tapped twice.
     await showBlockingLoader(context, () => AuthState.instance.logout());
+    // Signing out leaves the Profile tab showing a "Welcome, sign in"
+    // page; Home is where a guest belongs.
+    if (mounted) MainShell.selectTab(context, 0);
+  }
+
+  /// Store policy (Google Play, App Store) requires in-app account deletion.
+  /// The password is asked for because this cannot be undone.
+  Future<void> _confirmDeleteAccount() async {
+    final deleted = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const _DeleteAccountDialog(),
+    );
+    if (deleted != true || !mounted) return;
+    MainShell.selectTab(context, 0);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Your account has been deleted.')),
+    );
   }
 
   String _modeLabel(ThemeMode mode) => switch (mode) {
@@ -394,6 +414,7 @@ class _AccountScreenState extends State<AccountScreen> {
                   _MenuCard(
                     tiles: [
                       _MenuTile(icon: Icons.logout_rounded, label: 'Logout', danger: true, onTap: _confirmLogout),
+                      _MenuTile(icon: Icons.delete_forever_outlined, label: 'Delete Account', danger: true, onTap: _confirmDeleteAccount),
                     ],
                   ),
                   const SizedBox(height: 28),
@@ -439,6 +460,7 @@ class _AccountScreenState extends State<AccountScreen> {
                       for (final link in _socialLinks)
                         _SocialButton(
                           label: (link['label'] as String?) ?? '',
+                          imageUrl: ApiConfig.resolveUrl(link['image_url'] as String?),
                           onTap: () => _openUrl(link['url'] as String?),
                         ),
                     ],
@@ -456,31 +478,44 @@ class _AccountScreenState extends State<AccountScreen> {
 /// Round button for one of the store's social profiles, iconed by its label.
 class _SocialButton extends StatelessWidget {
   final String label;
+
+  /// A logo the shop uploaded in the admin panel; when absent the network's
+  /// own mark is drawn instead.
+  final String? imageUrl;
   final VoidCallback onTap;
 
-  const _SocialButton({required this.label, required this.onTap});
+  const _SocialButton({required this.label, required this.onTap, this.imageUrl});
 
-  static const _icons = <String, IconData>{
-    'facebook': Icons.facebook,
-    'instagram': Icons.camera_alt_outlined,
-    'youtube': Icons.play_circle_outline,
-    'twitter': Icons.alternate_email,
-    'x': Icons.alternate_email,
-    'linkedin': Icons.business_center_outlined,
-    'tiktok': Icons.music_note_outlined,
-    'whatsapp': Icons.chat_bubble_outline,
+  /// Real brand marks and their own colours, so the row reads as Facebook,
+  /// Instagram and YouTube rather than three grey glyphs.
+  static const _brands = <String, ({FaIconData icon, Color color})>{
+    'facebook': (icon: FontAwesomeIcons.facebookF, color: Color(0xFF1877F2)),
+    'instagram': (icon: FontAwesomeIcons.instagram, color: Color(0xFFE4405F)),
+    'youtube': (icon: FontAwesomeIcons.youtube, color: Color(0xFFFF0000)),
+    'twitter': (icon: FontAwesomeIcons.xTwitter, color: Color(0xFF0F0D16)),
+    'linkedin': (icon: FontAwesomeIcons.linkedinIn, color: Color(0xFF0A66C2)),
+    'tiktok': (icon: FontAwesomeIcons.tiktok, color: Color(0xFF0F0D16)),
+    'whatsapp': (icon: FontAwesomeIcons.whatsapp, color: Color(0xFF25D366)),
+    'telegram': (icon: FontAwesomeIcons.telegram, color: Color(0xFF26A5E4)),
+    'pinterest': (icon: FontAwesomeIcons.pinterest, color: Color(0xFFE60023)),
+    'snapchat': (icon: FontAwesomeIcons.snapchat, color: Color(0xFFFFFC00)),
   };
 
-  IconData get _icon {
+  ({FaIconData icon, Color color})? get _brand {
     final lower = label.toLowerCase();
-    for (final entry in _icons.entries) {
+    for (final entry in _brands.entries) {
       if (lower.contains(entry.key)) return entry.value;
     }
-    return Icons.link;
+    // "X" on its own would match almost any label, so it is checked exactly.
+    if (lower.trim() == 'x') return _brands['twitter'];
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
+    final brand = _brand;
+    final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
+
     return Tooltip(
       message: label,
       child: Material(
@@ -492,7 +527,22 @@ class _SocialButton extends StatelessWidget {
           child: SizedBox(
             width: 46,
             height: 46,
-            child: Icon(_icon, size: 20, color: AppColors.inkStrong),
+            child: hasImage
+                ? Padding(
+                    padding: const EdgeInsets.all(11),
+                    child: CachedNetworkImage(
+                      imageUrl: imageUrl!,
+                      fit: BoxFit.contain,
+                      errorWidget: (_, _, _) => Icon(Icons.link, size: 20, color: AppColors.inkStrong),
+                    ),
+                  )
+                // FaIcon does not centre itself the way Icon does, so a
+                // 46px box would pin the glyph to the top-left corner.
+                : Center(
+                    child: brand == null
+                        ? Icon(Icons.link, size: 20, color: AppColors.inkStrong)
+                        : FaIcon(brand.icon, size: 19, color: brand.color),
+                  ),
           ),
         ),
       ),
@@ -973,6 +1023,107 @@ class _RecentOrderCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+
+/// Password-confirmed, irreversible account deletion.
+class _DeleteAccountDialog extends StatefulWidget {
+  const _DeleteAccountDialog();
+
+  @override
+  State<_DeleteAccountDialog> createState() => _DeleteAccountDialogState();
+}
+
+class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
+  final _password = TextEditingController();
+  bool _obscure = true;
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _password.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final password = _password.text;
+    if (password.isEmpty) {
+      setState(() => _error = 'Enter your password to confirm.');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await AuthState.instance.deleteAccount(password);
+      if (mounted) Navigator.of(context).pop(true);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = e.fieldErrors?['password']?.first ?? e.message;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = 'Something went wrong. Please try again.';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const danger = Color(0xFFE0796B);
+    return AlertDialog(
+      title: const Text('Delete account?'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'This permanently deletes your account and personal data: '
+              'profile, addresses, wishlist and saved details. '
+              'This cannot be undone.',
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _password,
+              obscureText: _obscure,
+              enabled: !_busy,
+              autofocus: true,
+              onSubmitted: (_) => _submit(),
+              decoration: InputDecoration(
+                labelText: 'Password',
+                errorText: _error,
+                errorMaxLines: 3,
+                suffixIcon: IconButton(
+                  icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _busy ? null : () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: _busy ? null : _submit,
+          child: _busy
+              // The app's one spinner, same as every other busy state.
+              ? const AppLoader(size: 34)
+              : const Text('Delete', style: TextStyle(color: danger, fontWeight: FontWeight.w600)),
+        ),
+      ],
     );
   }
 }

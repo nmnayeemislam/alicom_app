@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
+import '../core/auth_gate.dart';
 import '../core/money.dart';
 import '../models/product.dart';
 import '../screens/product_detail_screen.dart';
@@ -92,6 +93,9 @@ class _ProductGridCardState extends State<ProductGridCard> {
   Future<void> _toggleWishlist() async {
     final id = widget.product.id;
     if (id == null || _busy) return;
+    // The wishlist belongs to an account, so a guest signs in first.
+    if (!await requireSignIn(context, reason: 'Sign in to save items to your wishlist.')) return;
+    if (!mounted) return;
     setState(() => _busy = true);
     try {
       final wishlisted = await WishlistState.instance.toggle(widget.product);
@@ -109,6 +113,8 @@ class _ProductGridCardState extends State<ProductGridCard> {
 
   Future<void> _addToCart() async {
     if (_adding || !widget.product.inStock) return;
+    if (!await requireSignIn(context, reason: 'Sign in to add items to your cart.')) return;
+    if (!mounted) return;
     setState(() => _adding = true);
     try {
       await CartState.instance.addProduct(widget.product);
@@ -380,11 +386,11 @@ class _ProductGridCardState extends State<ProductGridCard> {
     final enabled = product.inStock && !_adding;
     final Widget icon;
     if (_adding) {
-      icon = SizedBox(
-        key: const ValueKey('busy'),
-        width: 15,
-        height: 15,
-        child: AppLoader(size: 88),
+      // Sized to the 32px button it sits in — anything larger spills out
+      // of the circle and overflows the card.
+      icon = const AppLoader(
+        key: ValueKey('busy'),
+        size: 30,
       );
     } else if (_justAdded) {
       icon = const Icon(Icons.check_rounded, key: ValueKey('done'), size: 19, color: Colors.white);

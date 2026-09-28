@@ -24,15 +24,6 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  // Demo customer on the UAT backend, pre-filled in debug builds only so
-  // testers can sign in with one tap. Never shipped in release.
-  static const _demoEmail = 'demo@alicom.com';
-  static const _demoPassword = 'demo1234';
-
-  // Left empty on purpose. Pre-filling the demo pair meant a customer who
-  // typed their own e-mail over it but left the password behind got
-  // "credentials are incorrect" with no clue why; the demo card below still
-  // fills both in one tap.
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _otpPhoneController = TextEditingController();
@@ -294,8 +285,6 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildDemoCard(),
-          const SizedBox(height: 14),
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
@@ -369,58 +358,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ],
-        ),
-      ),
-    );
-  }
-
-  // --- DEMO ACCOUNT ----------------------------------------------------
-  /// Shows the shared UAT demo credentials so testers can sign in without
-  /// registering; tapping fills the form.
-  Widget _buildDemoCard() {
-    return InkWell(
-      onTap: () => setState(() {
-        _emailController.text = _demoEmail;
-        _passwordController.text = _demoPassword;
-        _error = null;
-      }),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.science_outlined, size: 18, color: AppColors.primary),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Demo account',
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Email: $_demoEmail\nPassword: $_demoPassword',
-                    style: TextStyle(color: AppColors.bodyStrong, fontSize: 12.5, height: 1.4),
-                  ),
-                ],
-              ),
-            ),
-            Text(
-              'Use',
-              style: TextStyle(color: AppColors.primary, fontSize: 13, fontWeight: FontWeight.w700),
-            ),
-          ],
         ),
       ),
     );

@@ -291,5 +291,6 @@
   "registerCodeResent": "A new code is on its way.",
   "fieldFullName": "Full name",
   "fieldEmail": "E-mail",
-  "fieldPhoneOptional": "Phone (optional)"
+  "fieldPhoneOptional": "Phone (optional)",
+  "registerCodeSentLabel": "We sent a 6-digit code to"
 }

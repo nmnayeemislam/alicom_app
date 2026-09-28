@@ -226,6 +226,13 @@ class AuthService {
     );
   }
 
+  /// Permanently deletes the signed-in account. Throws an [ApiException]
+  /// (422) when the password is wrong; the token is only dropped on success.
+  Future<void> deleteAccount(String password) async {
+    await _client.delete(ApiEndpoints.deleteAccount, data: {'password': password});
+    await TokenStorage.instance.clearToken();
+  }
+
   Future<void> logout() async {
     try {
       await _client.post(ApiEndpoints.logout);

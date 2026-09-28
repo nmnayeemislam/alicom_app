@@ -382,4 +382,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get fieldPhoneOptional => 'Phone (optional)';
+
+  @override
+  String get registerCodeSentLabel => 'We sent a 6-digit code to';
 }

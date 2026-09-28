@@ -112,7 +112,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ALICOM', style: TextStyle(letterSpacing: 3, fontWeight: FontWeight.w700)),
+        title: const Text('Reviews'),
         centerTitle: true,
         actions: [
           IconButton(

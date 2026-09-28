@@ -68,7 +68,7 @@ class AuthState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<({int expiresInSeconds, int resendAfterSeconds})> sendRegistrationOtp(String email) =>
+  Future<({int expiresInSeconds, int resendAfterSeconds, String? debugOtp})> sendRegistrationOtp(String email) =>
       AuthService.instance.sendRegistrationOtp(email);
 
   Future<void> sendLoginOtp({required String phone}) =>

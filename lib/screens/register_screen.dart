@@ -49,6 +49,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _referralController = TextEditingController(text: ReferralState.instance.pendingCode ?? '');
   final _otpController = TextEditingController();
 
+  /// The code itself, only when the backend runs with APP_ENV=local.
+  String? _debugOtp;
+
   /// 0 = details, 1 = the emailed code.
   int _step = 0;
 
@@ -171,7 +174,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final result = await AuthState.instance.sendRegistrationOtp(email);
       if (!mounted) return;
       _startResendCountdown(result.resendAfterSeconds);
-      setState(() => _step = 1);
+      setState(() {
+        _step = 1;
+        _debugOtp = result.debugOtp;
+      });
       if (isResend) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
@@ -668,6 +674,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ],
         ),
       ),
+      if (_debugOtp != null) ...[
+        const SizedBox(height: 16),
+        _DebugOtpBanner(
+          code: _debugOtp!,
+          onUse: _isSubmitting
+              ? null
+              : () {
+                  _otpController.text = _debugOtp!;
+                  _clearFieldError('otp');
+                  setState(() {});
+                },
+        ),
+      ],
       const SizedBox(height: 22),
       _OtpBoxes(
         controller: _otpController,
@@ -873,6 +892,57 @@ class _OtpBoxesState extends State<_OtpBoxes> {
           fontWeight: FontWeight.w800,
           color: AppColors.inkStrong,
         ),
+      ),
+    );
+  }
+}
+
+
+/// Local-backend helper: shows the sign-up code the API returned so the flow
+/// can be tested without the mailbox. Never appears against a live server,
+/// which does not send the code back.
+class _DebugOtpBanner extends StatelessWidget {
+  const _DebugOtpBanner({required this.code, required this.onUse});
+
+  final String code;
+  final VoidCallback? onUse;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7DB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFF2D675)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.bug_report_outlined, size: 20, color: Color(0xFF8A6D00)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Test mode (local server)',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF8A6D00), fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                SelectableText(
+                  code,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    letterSpacing: 4,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF3D3000),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton(onPressed: onUse, child: const Text('Use code')),
+        ],
       ),
     );
   }

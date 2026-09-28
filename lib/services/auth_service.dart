@@ -29,7 +29,9 @@ class AuthService {
   ///
   /// A 422 keyed on `email` covers the address already having an account,
   /// asking again too soon, and asking too many times.
-  Future<({int expiresInSeconds, int resendAfterSeconds})> sendRegistrationOtp(String email) async {
+  /// A backend with APP_ENV=local also returns the code as `debug_otp`, so
+  /// testers without the mailbox can finish sign-up; it is null otherwise.
+  Future<({int expiresInSeconds, int resendAfterSeconds, String? debugOtp})> sendRegistrationOtp(String email) async {
     final response = await _client.post(
       ApiEndpoints.authRegisterSendOtp,
       data: {'email': email},
@@ -40,6 +42,7 @@ class AuthService {
     return (
       expiresInSeconds: (map['expires_in_seconds'] as num?)?.toInt() ?? 300,
       resendAfterSeconds: (map['resend_after_seconds'] as num?)?.toInt() ?? 60,
+      debugOtp: map['debug_otp']?.toString(),
     );
   }
 

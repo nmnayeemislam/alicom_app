@@ -6,6 +6,7 @@ import '../screens/apply_referral_screen.dart';
 import '../screens/referral_screen.dart';
 import '../state/referral_state.dart';
 import '../theme/app_theme.dart';
+import 'app_loader.dart';
 import 'referral_widgets.dart';
 
 /// "Refer & Earn" on the Profile screen: QR of the referral link, the code
@@ -246,11 +247,7 @@ class _ReferralCardState extends State<ReferralCard> {
           padding: const EdgeInsets.symmetric(vertical: 22),
           child: Center(
             child: state.isLoading || state.error == null
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+                ? AppLoader(size: 46)
                 : TextButton.icon(
                     onPressed: state.refresh,
                     icon: const Icon(Icons.refresh_rounded, size: 18),

@@ -15,6 +15,7 @@ import '../state/locale_state.dart';
 import '../state/referral_state.dart';
 import '../state/theme_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_loader.dart';
 import '../widgets/tab_app_bar.dart';
 import '../widgets/referral_card.dart';
 import 'addresses_screen.dart';
@@ -183,7 +184,10 @@ class _AccountScreenState extends State<AccountScreen> {
         ],
       ),
     );
-    if (confirmed == true) await AuthState.instance.logout();
+    if (confirmed != true || !mounted) return;
+    // Signing out talks to the API and deletes the push token, so it is
+    // slow enough to need a visible wait — and must not be tapped twice.
+    await showBlockingLoader(context, () => AuthState.instance.logout());
   }
 
   String _modeLabel(ThemeMode mode) => switch (mode) {
@@ -409,9 +413,9 @@ class _AccountScreenState extends State<AccountScreen> {
                   ),
                   const SizedBox(height: 8),
                   if (_isLoadingOrders)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                      child: Center(child: AppLoader(size: 88)),
                     )
                   else if (_recentOrders.isEmpty)
                     Padding(
@@ -635,11 +639,7 @@ class _Avatar extends StatelessWidget {
                       ColoredBox(
                         color: Colors.black.withValues(alpha: 0.45),
                         child: const Center(
-                          child: SizedBox(
-                            width: 26,
-                            height: 26,
-                            child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
-                          ),
+                          child: AppLoader.onAccent(size: 52),
                         ),
                       ),
                   ],

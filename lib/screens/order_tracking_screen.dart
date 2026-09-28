@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/api_exception.dart';
 import '../services/commerce_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_loader.dart';
 
 /// Guest-accessible order tracking (order code + phone, no sign-in) — mirrors
 /// pages/tracking.vue and OrderTrackingController's phone-gated lookup.
@@ -80,11 +81,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                 ElevatedButton(
                   onPressed: _isSubmitting ? null : _track,
                   child: _isSubmitting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
+                      ? const AppLoader.onAccent(size: 46)
                       : const Text('Track'),
                 ),
                 if (_error != null) ...[

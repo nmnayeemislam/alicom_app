@@ -8,6 +8,7 @@ import '../screens/cart_screen.dart';
 import '../services/referral_service.dart';
 import '../state/referral_state.dart';
 import '../theme/app_theme.dart';
+import 'app_loader.dart';
 import 'referral_widgets.dart';
 
 /// "Redeem {threshold} points" — enabled only when the API says
@@ -82,7 +83,7 @@ class _RedeemButtonState extends State<RedeemButton> {
     return ElevatedButton.icon(
       onPressed: widget.canRedeem && !_busy ? _redeem : null,
       icon: _busy
-          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+          ? const AppLoader.onAccent(size: 46)
           : const Icon(Icons.redeem_rounded, size: 20),
       label: Text(l10n.redeemPointsButton(formatPoints(context, widget.threshold))),
       style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),

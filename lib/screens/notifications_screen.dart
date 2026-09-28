@@ -8,6 +8,7 @@ import '../services/notification_service.dart';
 import '../state/auth_state.dart';
 import '../state/notification_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_loader.dart';
 import '../widgets/state_views.dart';
 import 'login_screen.dart';
 import 'order_detail_screen.dart';
@@ -271,10 +272,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               separatorBuilder: (_, _) => const SizedBox(height: 10),
               itemBuilder: (context, index) {
                 if (index >= _items.length) {
-                  return const Padding(
+                  return Padding(
                     padding: EdgeInsets.symmetric(vertical: 20),
                     child: Center(
-                      child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2)),
+                      child: AppLoader(size: 46),
                     ),
                   );
                 }

@@ -23,28 +23,55 @@ class AuthService {
 
   final _client = ApiClient.instance;
 
-  /// [countryIso] is the two-letter code from [countries] (e.g. 'BD') —
-  /// required by RegisterRequest to normalize [phone] into a single stored
-  /// format. [email] is optional; [password] must be at least 8 characters
-  /// and [passwordConfirmation] must match it (Laravel's `confirmed` rule).
+  /// Step one of sign-up: asks the backend to email a 6-digit code to
+  /// [email]. Returns how long the code lasts and how soon another one can
+  /// be asked for.
+  ///
+  /// A 422 keyed on `email` covers the address already having an account,
+  /// asking again too soon, and asking too many times.
+  Future<({int expiresInSeconds, int resendAfterSeconds})> sendRegistrationOtp(String email) async {
+    final response = await _client.post(
+      ApiEndpoints.authRegisterSendOtp,
+      data: {'email': email},
+    );
+    final body = response.data;
+    final data = body is Map ? body['data'] : null;
+    final map = data is Map ? data : const {};
+    return (
+      expiresInSeconds: (map['expires_in_seconds'] as num?)?.toInt() ?? 300,
+      resendAfterSeconds: (map['resend_after_seconds'] as num?)?.toInt() ?? 60,
+    );
+  }
+
+  /// Step two: creates the account with the code from [sendRegistrationOtp].
+  ///
+  /// [email] and [otp] are both required now. [phone] is optional — when it
+  /// is given, [countryIso] must come with it so the backend can normalise
+  /// the number; when it is not, both are sent as null and the account has
+  /// no phone. [password] must be at least 8 characters and
+  /// [passwordConfirmation] must match it (Laravel's `confirmed` rule).
   Future<AuthResult> register({
     required String name,
-    required String countryIso,
-    required String phone,
-    String? email,
+    required String email,
+    required String otp,
     required String password,
     required String passwordConfirmation,
+    String? countryIso,
+    String? phone,
     String? referralCode,
   }) async {
+    final trimmedPhone = phone?.trim();
+    final hasPhone = trimmedPhone != null && trimmedPhone.isNotEmpty;
     final response = await _client.post(
       ApiEndpoints.register,
       // No referrer id is ever sent — the backend derives it from the code.
       data: {
         'referral_code': ?referralCode,
         'name': name,
-        'country_iso': countryIso,
-        'phone': phone,
-        'email': ?email,
+        'email': email,
+        'otp': otp,
+        'phone': hasPhone ? trimmedPhone : null,
+        'country_iso': hasPhone ? countryIso : null,
         'password': password,
         'password_confirmation': passwordConfirmation,
       },

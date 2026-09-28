@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/api_exception.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_loader.dart';
 import '../widgets/auth_header.dart';
 
 enum _Step { requestOtp, verifyOtp, resetPassword, done }
@@ -203,11 +204,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   Widget _submitLabel(String label) {
     return _isSubmitting
-        ? const SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-          )
+        ? const AppLoader.onAccent(size: 46)
         : Text(label);
   }
 }

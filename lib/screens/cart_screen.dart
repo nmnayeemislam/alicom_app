@@ -7,6 +7,7 @@ import '../core/money.dart';
 import '../services/commerce_service.dart';
 import '../state/cart_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_loader.dart';
 import '../widgets/state_views.dart';
 import 'checkout_screen.dart';
 
@@ -298,7 +299,7 @@ class _CartScreenState extends State<CartScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
               ),
               child: _isCheckingPromo
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  ? const AppLoader.onAccent(size: 46)
                   : const Text('Apply'),
             ),
           ],

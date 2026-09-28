@@ -9,6 +9,7 @@ import '../services/settings_service.dart';
 import '../state/auth_state.dart';
 import '../state/cart_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_loader.dart';
 import '../widgets/state_views.dart';
 import 'main_shell.dart';
 
@@ -373,11 +374,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               OutlinedButton(
                                 onPressed: _isCheckingCoupon ? null : _applyCoupon,
                                 child: _isCheckingCoupon
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(strokeWidth: 2),
-                                      )
+                                    ? AppLoader(size: 46)
                                     : const Text('Apply'),
                               ),
                             ],
@@ -472,11 +469,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ElevatedButton(
                       onPressed: _isSubmitting ? null : _placeOrder,
                       child: _isSubmitting
-                          ? SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onAccent),
-                            )
+                          ? AppLoader(size: 46)
                           : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: const [
@@ -562,11 +555,7 @@ class _SummaryRow extends StatelessWidget {
         children: [
           Text(label, style: style),
           if (isLoading)
-            const SizedBox(
-              width: 14,
-              height: 14,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
+            AppLoader(size: 46)
           else
             Text(formatPrice(value), style: style),
         ],

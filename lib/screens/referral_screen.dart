@@ -5,6 +5,7 @@ import '../models/referral.dart';
 import '../services/referral_service.dart';
 import '../state/referral_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_loader.dart';
 import '../widgets/redeem_button.dart';
 import '../widgets/referral_widgets.dart';
 import 'apply_referral_screen.dart';
@@ -71,7 +72,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
 /// Spinner / retry while the shared referral data is missing.
 Widget _stateFallback(BuildContext context, ReferralState state, Future<void> Function() onRefresh) {
   if (state.isLoading || state.error == null) {
-    return const Center(child: CircularProgressIndicator());
+    return Center(child: AppLoader(size: 88));
   }
   final l10n = AppLocalizations.of(context);
   return Center(
@@ -373,7 +374,7 @@ class _HistoryTabState extends State<_HistoryTab> with AutomaticKeepAliveClientM
     if (_items.isEmpty) {
       Widget body;
       if (_loading) {
-        body = const CircularProgressIndicator();
+        body = AppLoader(size: 88);
       } else if (_error != null) {
         body = Column(
           mainAxisSize: MainAxisSize.min,
@@ -408,9 +409,9 @@ class _HistoryTabState extends State<_HistoryTab> with AutomaticKeepAliveClientM
       itemBuilder: (context, i) {
         if (i == _items.length) {
           if (_loading) {
-            return const Padding(
+            return Padding(
               padding: EdgeInsets.all(12),
-              child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))),
+              child: Center(child: AppLoader(size: 46)),
             );
           }
           if (_error != null) {

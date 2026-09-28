@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/api_exception.dart';
 import '../services/misc_service.dart';
 import '../theme/app_theme.dart';
+import 'app_loader.dart';
 
 /// Mirrors ReviewController@store's validation: rating 1-5 required,
 /// comment optional. The backend also requires a delivered order for this
@@ -98,11 +99,7 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
           ElevatedButton(
             onPressed: _isSubmitting ? null : _submit,
             child: _isSubmitting
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                  )
+                ? const AppLoader.onAccent(size: 46)
                 : const Text('Submit Review'),
           ),
         ],

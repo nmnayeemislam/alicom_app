@@ -6,6 +6,7 @@ import '../models/product.dart';
 import '../services/catalog_service.dart';
 import '../state/cart_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_loader.dart';
 import '../widgets/product_grid_card.dart';
 import '../widgets/state_views.dart';
 import 'cart_screen.dart';
@@ -399,7 +400,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                       child: InkWell(
                         onTap: _shopNow,
                         borderRadius: BorderRadius.circular(999),
-                        child: const Padding(
+                        child: Padding(
                           padding: EdgeInsets.symmetric(
                               horizontal: 16, vertical: 9),
                           child: Row(
@@ -506,7 +507,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         SliverToBoxAdapter(
           child: Padding(
             padding: EdgeInsets.symmetric(vertical: 60),
-            child: Center(child: CircularProgressIndicator()),
+            child: Center(child: AppLoader(size: 88)),
           ),
         ),
       ];
@@ -552,11 +553,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   Widget _buildFooter() {
     if (_loadingMore) {
       return const Center(
-        child: SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
+        child: AppLoader(size: 46),
       );
     }
     if (_productsError != null && _hasMore) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import 'app_loader.dart';
 
 /// Shared loading/error/empty placeholders so every screen's "in-between"
 /// states look and read the same way, instead of each screen inventing its
@@ -10,9 +11,7 @@ class LoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: CircularProgressIndicator(color: AppColors.accent),
-    );
+    return const Center(child: AppLoader(size: 88));
   }
 }
 

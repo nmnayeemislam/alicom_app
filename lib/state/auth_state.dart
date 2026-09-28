@@ -42,27 +42,34 @@ class AuthState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Second step of sign-up — see [AuthService.register]. Phone is
+  /// optional; the country only travels with one.
   Future<void> register({
     required String name,
-    required String countryIso,
-    required String phone,
-    String? email,
+    required String email,
+    required String otp,
     required String password,
     required String passwordConfirmation,
+    String? countryIso,
+    String? phone,
     String? referralCode,
   }) async {
     final result = await AuthService.instance.register(
       referralCode: referralCode,
       name: name,
+      email: email,
+      otp: otp,
       countryIso: countryIso,
       phone: phone,
-      email: email,
       password: password,
       passwordConfirmation: passwordConfirmation,
     );
     user = result.user;
     notifyListeners();
   }
+
+  Future<({int expiresInSeconds, int resendAfterSeconds})> sendRegistrationOtp(String email) =>
+      AuthService.instance.sendRegistrationOtp(email);
 
   Future<void> sendLoginOtp({required String phone}) =>
       AuthService.instance.sendLoginOtp(phone: phone);

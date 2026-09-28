@@ -90,5 +90,20 @@
   "invoiceDownload": "চালান ডাউনলোড",
   "invoiceSave": "ডাউনলোডে সংরক্ষণ",
   "invoiceSaved": "Downloads ফোল্ডারে {name} নামে সংরক্ষিত হয়েছে",
-  "invoiceSaveFailed": "ফাইলটি সংরক্ষণ করা যায়নি। বদলে শেয়ার করে দেখুন।"
+  "invoiceSaveFailed": "ফাইলটি সংরক্ষণ করা যায়নি। বদলে শেয়ার করে দেখুন।",
+  "registerStepDetails": "আপনার তথ্য",
+  "registerStepVerify": "ইমেইল যাচাই",
+  "registerStepOf": "ধাপ {step} / {total}",
+  "registerSendCode": "যাচাই কোড পাঠান",
+  "registerCodeSentTo": "{email} ঠিকানায় ৬ সংখ্যার কোড পাঠানো হয়েছে",
+  "registerChangeEmail": "বদলান",
+  "registerCodeLabel": "৬ সংখ্যার কোড",
+  "registerEnterCode": "৬ সংখ্যার কোডটি দিন",
+  "registerResendCode": "আবার কোড পাঠান",
+  "registerResendIn": "{seconds} সেকেন্ড পর আবার পাঠানো যাবে",
+  "registerVerifyAndCreate": "যাচাই করে অ্যাকাউন্ট খুলুন",
+  "registerCodeResent": "নতুন কোড পাঠানো হয়েছে।",
+  "fieldFullName": "পুরো নাম",
+  "fieldEmail": "ই-মেইল",
+  "fieldPhoneOptional": "ফোন (ঐচ্ছিক)"
 }

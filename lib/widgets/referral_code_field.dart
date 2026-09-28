@@ -7,6 +7,7 @@ import '../models/referral.dart';
 import '../screens/qr_scan_screen.dart';
 import '../services/referral_service.dart';
 import '../theme/app_theme.dart';
+import 'app_loader.dart';
 
 /// Referral code input used at sign-up and on the "apply a code" screen.
 ///
@@ -148,9 +149,9 @@ class _ReferralCodeFieldState extends State<ReferralCodeField> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (_checking)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(right: 4),
-                child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                child: AppLoader(size: 46),
               ),
             IconButton(
               tooltip: l10n.scanQr,

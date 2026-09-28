@@ -10,6 +10,7 @@ import '../state/auth_state.dart';
 import '../state/wishlist_state.dart';
 import '../state/cart_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_loader.dart';
 import '../widgets/state_views.dart';
 import '../widgets/write_review_sheet.dart';
 import 'cart_screen.dart';
@@ -458,9 +459,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ],
         ),
         if (_isLoadingReviews)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            child: Center(child: AppLoader(size: 88)),
           )
         else if (_reviews.isEmpty)
           Padding(
@@ -677,7 +678,7 @@ class _Photo extends StatelessWidget {
           filterQuality: FilterQuality.medium,
           fadeInDuration: const Duration(milliseconds: 200),
           placeholder: (_, _) => const Center(
-            child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2)),
+            child: AppLoader(size: 46),
           ),
           errorWidget: (_, _, _) => fallback,
         ),

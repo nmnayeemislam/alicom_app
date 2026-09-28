@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_loader.dart';
 
 /// Reads the downloaded invoice inside the app.
 ///
@@ -68,10 +69,10 @@ class _InvoiceViewerScreenState extends State<InvoiceViewerScreen> {
         builders: PdfViewPinchBuilders<DefaultBuilderOptions>(
           options: const DefaultBuilderOptions(),
           documentLoaderBuilder: (_) => const Center(
-            child: SizedBox(width: 26, height: 26, child: CircularProgressIndicator(strokeWidth: 2)),
+            child: AppLoader(size: 52),
           ),
           pageLoaderBuilder: (_) => const Center(
-            child: SizedBox(width: 26, height: 26, child: CircularProgressIndicator(strokeWidth: 2)),
+            child: AppLoader(size: 52),
           ),
           errorBuilder: (_, error) => Center(
             child: Padding(

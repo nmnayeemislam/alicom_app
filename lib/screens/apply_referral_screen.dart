@@ -5,6 +5,7 @@ import '../l10n/app_localizations.dart';
 import '../services/referral_service.dart';
 import '../state/referral_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_loader.dart';
 import '../widgets/referral_code_field.dart';
 import '../widgets/referral_widgets.dart';
 
@@ -105,11 +106,7 @@ class _ApplyReferralScreenState extends State<ApplyReferralScreen> {
             onPressed: _submitting ? null : _apply,
             style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
             child: _submitting
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                  )
+                ? const AppLoader.onAccent(size: 46)
                 : Text(l10n.apply),
           ),
         ],

@@ -5,6 +5,7 @@ import '../models/order_tracking.dart';
 import '../services/order_service.dart';
 import '../state/auth_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_loader.dart';
 import '../widgets/order_stage_tracker.dart';
 import '../widgets/state_views.dart';
 import '../widgets/notification_bell.dart';
@@ -313,7 +314,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
             child: OutlinedButton.icon(
               onPressed: _isLoadingMore ? null : _loadMore,
               icon: _isLoadingMore
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? AppLoader(size: 46)
                   : const Icon(Icons.expand_more_rounded, size: 18),
               label: Text(_isLoadingMore ? 'Loading…' : 'Load more orders'),
               style: OutlinedButton.styleFrom(

@@ -11,6 +11,7 @@ import '../screens/product_detail_screen.dart';
 import '../state/cart_state.dart';
 import '../state/wishlist_state.dart';
 import '../theme/app_theme.dart';
+import 'app_loader.dart';
 
 /// The two-column storefront card shared by Home, the Products tab and
 /// Wishlist, so a product looks the same wherever it is listed: an
@@ -383,7 +384,7 @@ class _ProductGridCardState extends State<ProductGridCard> {
         key: const ValueKey('busy'),
         width: 15,
         height: 15,
-        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.inkStrong),
+        child: AppLoader(size: 88),
       );
     } else if (_justAdded) {
       icon = const Icon(Icons.check_rounded, key: ValueKey('done'), size: 19, color: Colors.white);

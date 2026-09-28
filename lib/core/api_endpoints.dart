@@ -7,6 +7,8 @@ class ApiEndpoints {
   static const register = '/register';
   static const login = '/login';
   static const authCountries = '/auth/countries';
+  /// Step one of sign-up: emails a 6-digit code that `register` then checks.
+  static const authRegisterSendOtp = '/auth/register/send-otp';
   static const authLoginOtp = '/auth/login-otp';
   static const authLoginOtpVerify = '/auth/login-otp/verify';
   static const authForgotPassword = '/auth/forgot-password';

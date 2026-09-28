@@ -331,4 +331,55 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get invoiceSaveFailed =>
       'Could not save the file. Try sharing it instead.';
+
+  @override
+  String get registerStepDetails => 'Your details';
+
+  @override
+  String get registerStepVerify => 'Verify email';
+
+  @override
+  String registerStepOf(int step, int total) {
+    return 'Step $step of $total';
+  }
+
+  @override
+  String get registerSendCode => 'Send verification code';
+
+  @override
+  String registerCodeSentTo(String email) {
+    return 'We sent a 6-digit code to $email';
+  }
+
+  @override
+  String get registerChangeEmail => 'Change';
+
+  @override
+  String get registerCodeLabel => '6-digit code';
+
+  @override
+  String get registerEnterCode => 'Enter the 6-digit code';
+
+  @override
+  String get registerResendCode => 'Resend code';
+
+  @override
+  String registerResendIn(int seconds) {
+    return 'Resend in ${seconds}s';
+  }
+
+  @override
+  String get registerVerifyAndCreate => 'Verify & Create Account';
+
+  @override
+  String get registerCodeResent => 'A new code is on its way.';
+
+  @override
+  String get fieldFullName => 'Full name';
+
+  @override
+  String get fieldEmail => 'E-mail';
+
+  @override
+  String get fieldPhoneOptional => 'Phone (optional)';
 }

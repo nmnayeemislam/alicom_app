@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../core/api_exception.dart';
 import '../state/auth_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_loader.dart';
 import '../widgets/auth_header.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
@@ -29,10 +29,12 @@ class _LoginScreenState extends State<LoginScreen> {
   static const _demoEmail = 'demo@alicom.com';
   static const _demoPassword = 'demo1234';
 
-  final _emailController =
-      TextEditingController(text: kDebugMode ? _demoEmail : null);
-  final _passwordController =
-      TextEditingController(text: kDebugMode ? _demoPassword : null);
+  // Left empty on purpose. Pre-filling the demo pair meant a customer who
+  // typed their own e-mail over it but left the password behind got
+  // "credentials are incorrect" with no clue why; the demo card below still
+  // fills both in one tap.
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _otpPhoneController = TextEditingController();
   final _otpController = TextEditingController();
 
@@ -63,6 +65,10 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+      // Lets the platform's password manager save (or correct) this pair.
+      // Without it Android keeps filling whatever it had stored before,
+      // silently replacing what the customer typed.
+      TextInput.finishAutofillContext();
       if (mounted) Navigator.of(context).pop();
     } on ApiException catch (e) {
       setState(() => _error = e.message);
@@ -284,7 +290,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildPasswordForm() {
     return Form(
       key: _formKey,
-      child: Column(
+      child: AutofillGroup(
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildDemoCard(),
@@ -348,11 +355,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ElevatedButton(
             onPressed: _isSubmitting ? null : _submitPassword,
             child: _isSubmitting
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                  )
+                ? const AppLoader.onAccent(size: 46)
                 : const Text('Login'),
           ),
           const SizedBox(height: 16),
@@ -366,6 +369,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -462,11 +466,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ElevatedButton(
           onPressed: _isSubmitting ? null : (_otpSent ? _verifyOtp : _sendOtp),
           child: _isSubmitting
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                )
+              ? const AppLoader.onAccent(size: 46)
               : Text(_otpSent ? 'Verify & Login' : 'Send Code'),
         ),
         const SizedBox(height: 16),

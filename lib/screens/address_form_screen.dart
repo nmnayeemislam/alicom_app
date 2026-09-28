@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/app_loader.dart';
 
 import '../core/api_exception.dart';
 import '../services/address_service.dart';
@@ -144,11 +145,7 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                 ElevatedButton(
                   onPressed: _isSubmitting ? null : _submit,
                   child: _isSubmitting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
+                      ? const AppLoader.onAccent(size: 46)
                       : Text(_isEditing ? 'Save Changes' : 'Add Address'),
                 ),
               ],

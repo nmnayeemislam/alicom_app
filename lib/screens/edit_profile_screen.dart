@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/app_loader.dart';
 
 import '../core/api_exception.dart';
 import '../services/auth_service.dart';
@@ -111,7 +112,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 if (_isLoadingCountries)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
-                    child: LinearProgressIndicator(),
+                    child: Center(child: AppLoader(size: 52)),
                   )
                 else if (_countries.isNotEmpty)
                   DropdownButtonFormField<String>(
@@ -152,11 +153,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ElevatedButton(
                   onPressed: _isSubmitting ? null : _submit,
                   child: _isSubmitting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
+                      ? const AppLoader.onAccent(size: 46)
                       : const Text('Save Changes'),
                 ),
               ],

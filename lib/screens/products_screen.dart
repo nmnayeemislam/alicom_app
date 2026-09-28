@@ -7,6 +7,7 @@ import '../models/category.dart';
 import '../models/product.dart';
 import '../services/catalog_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_loader.dart';
 import '../widgets/product_grid_card.dart';
 import '../widgets/state_views.dart';
 import 'notifications_screen.dart';
@@ -264,7 +265,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           child: ListView(
             shrinkWrap: true,
             children: [
-              const Padding(
+              Padding(
                 padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
                 child: Text('Category', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
               ),
@@ -325,7 +326,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Padding(
+                Padding(
                   padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
                   child: Align(
                     alignment: Alignment.centerLeft,
@@ -380,7 +381,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
         child: ListView(
           shrinkWrap: true,
           children: [
-            const Padding(
+            Padding(
               padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
               child: Text('Sort By', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             ),
@@ -583,11 +584,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               ? OutlinedButton.icon(
                                   onPressed: _isLoadingMore ? null : _loadMore,
                                   icon: _isLoadingMore
-                                      ? const SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(strokeWidth: 2),
-                                        )
+                                      ? AppLoader(size: 46)
                                       : const Icon(Icons.expand_more_rounded, size: 18),
                                   label: Text(_isLoadingMore ? 'Loading…' : 'Load more products'),
                                   style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),

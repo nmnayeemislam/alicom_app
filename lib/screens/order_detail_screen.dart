@@ -12,6 +12,7 @@ import '../l10n/app_localizations.dart';
 import '../models/order_tracking.dart';
 import '../services/order_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_loader.dart';
 import '../widgets/order_stage_tracker.dart';
 import '../widgets/state_views.dart';
 import 'invoice_viewer_screen.dart';
@@ -392,7 +393,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         ElevatedButton.icon(
           onPressed: _isDownloadingInvoice ? null : _openInvoice,
           icon: _isDownloadingInvoice
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              ? const AppLoader.onAccent(size: 46)
               : const Icon(Icons.download_rounded, size: 20),
           style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
           label: Text(

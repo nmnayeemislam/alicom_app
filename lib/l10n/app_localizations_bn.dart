@@ -332,4 +332,55 @@ class AppLocalizationsBn extends AppLocalizations {
   @override
   String get invoiceSaveFailed =>
       'ফাইলটি সংরক্ষণ করা যায়নি। বদলে শেয়ার করে দেখুন।';
+
+  @override
+  String get registerStepDetails => 'আপনার তথ্য';
+
+  @override
+  String get registerStepVerify => 'ইমেইল যাচাই';
+
+  @override
+  String registerStepOf(int step, int total) {
+    return 'ধাপ $step / $total';
+  }
+
+  @override
+  String get registerSendCode => 'যাচাই কোড পাঠান';
+
+  @override
+  String registerCodeSentTo(String email) {
+    return '$email ঠিকানায় ৬ সংখ্যার কোড পাঠানো হয়েছে';
+  }
+
+  @override
+  String get registerChangeEmail => 'বদলান';
+
+  @override
+  String get registerCodeLabel => '৬ সংখ্যার কোড';
+
+  @override
+  String get registerEnterCode => '৬ সংখ্যার কোডটি দিন';
+
+  @override
+  String get registerResendCode => 'আবার কোড পাঠান';
+
+  @override
+  String registerResendIn(int seconds) {
+    return '$seconds সেকেন্ড পর আবার পাঠানো যাবে';
+  }
+
+  @override
+  String get registerVerifyAndCreate => 'যাচাই করে অ্যাকাউন্ট খুলুন';
+
+  @override
+  String get registerCodeResent => 'নতুন কোড পাঠানো হয়েছে।';
+
+  @override
+  String get fieldFullName => 'পুরো নাম';
+
+  @override
+  String get fieldEmail => 'ই-মেইল';
+
+  @override
+  String get fieldPhoneOptional => 'ফোন (ঐচ্ছিক)';
 }

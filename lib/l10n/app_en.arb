@@ -252,5 +252,44 @@
       }
     }
   },
-  "invoiceSaveFailed": "Could not save the file. Try sharing it instead."
+  "invoiceSaveFailed": "Could not save the file. Try sharing it instead.",
+  "registerStepDetails": "Your details",
+  "registerStepVerify": "Verify email",
+  "registerStepOf": "Step {step} of {total}",
+  "@registerStepOf": {
+    "placeholders": {
+      "step": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "registerSendCode": "Send verification code",
+  "registerCodeSentTo": "We sent a 6-digit code to {email}",
+  "@registerCodeSentTo": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "registerChangeEmail": "Change",
+  "registerCodeLabel": "6-digit code",
+  "registerEnterCode": "Enter the 6-digit code",
+  "registerResendCode": "Resend code",
+  "registerResendIn": "Resend in {seconds}s",
+  "@registerResendIn": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "registerVerifyAndCreate": "Verify & Create Account",
+  "registerCodeResent": "A new code is on its way.",
+  "fieldFullName": "Full name",
+  "fieldEmail": "E-mail",
+  "fieldPhoneOptional": "Phone (optional)"
 }

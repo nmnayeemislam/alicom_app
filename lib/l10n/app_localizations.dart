@@ -643,6 +643,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not save the file. Try sharing it instead.'**
   String get invoiceSaveFailed;
+
+  /// No description provided for @registerStepDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Your details'**
+  String get registerStepDetails;
+
+  /// No description provided for @registerStepVerify.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify email'**
+  String get registerStepVerify;
+
+  /// No description provided for @registerStepOf.
+  ///
+  /// In en, this message translates to:
+  /// **'Step {step} of {total}'**
+  String registerStepOf(int step, int total);
+
+  /// No description provided for @registerSendCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Send verification code'**
+  String get registerSendCode;
+
+  /// No description provided for @registerCodeSentTo.
+  ///
+  /// In en, this message translates to:
+  /// **'We sent a 6-digit code to {email}'**
+  String registerCodeSentTo(String email);
+
+  /// No description provided for @registerChangeEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get registerChangeEmail;
+
+  /// No description provided for @registerCodeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'6-digit code'**
+  String get registerCodeLabel;
+
+  /// No description provided for @registerEnterCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the 6-digit code'**
+  String get registerEnterCode;
+
+  /// No description provided for @registerResendCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend code'**
+  String get registerResendCode;
+
+  /// No description provided for @registerResendIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend in {seconds}s'**
+  String registerResendIn(int seconds);
+
+  /// No description provided for @registerVerifyAndCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify & Create Account'**
+  String get registerVerifyAndCreate;
+
+  /// No description provided for @registerCodeResent.
+  ///
+  /// In en, this message translates to:
+  /// **'A new code is on its way.'**
+  String get registerCodeResent;
+
+  /// No description provided for @fieldFullName.
+  ///
+  /// In en, this message translates to:
+  /// **'Full name'**
+  String get fieldFullName;
+
+  /// No description provided for @fieldEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'E-mail'**
+  String get fieldEmail;
+
+  /// No description provided for @fieldPhoneOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone (optional)'**
+  String get fieldPhoneOptional;
 }
 
 class _AppLocalizationsDelegate

@@ -86,12 +86,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
   /// every frame; the "Load more" button clears it.
   bool _autoLoadPaused = false;
 
-  /// `pagination.total` for the filters in force — the real match count,
-  /// not how many rows happen to be loaded. Shown in the heading badge so a
-  /// filter that silently did nothing (Laravel ignores an unknown query key
-  /// rather than erroring) is visible instead of looking like it worked.
-  int? _total;
-
   @override
   void initState() {
     super.initState();
@@ -158,7 +152,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
       if (generation != _generation) return;
       _products = page.products;
       _hasMore = page.pagination.hasMorePages;
-      _total = page.pagination.total;
     } catch (e) {
       if (generation != _generation) return;
       _error = e.toString();
@@ -199,7 +192,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
           _products = [..._products, ...page.products];
           _page = nextPage;
           _hasMore = page.pagination.hasMorePages;
-          _total = page.pagination.total;
         });
       }
     } catch (_) {
@@ -625,11 +617,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
       subtitle = 'Browse the full catalogue';
     }
 
-    // The server's match count for the filters in force, not how many rows
-    // happen to be loaded — a `category_slug` that narrowed nothing shows up
-    // here as the full catalogue total instead of looking like it worked.
-    final count = _total ?? _products.length;
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
       child: Row(
@@ -663,19 +650,17 @@ class _ProductsScreenState extends State<ProductsScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          Container(
-            margin: const EdgeInsets.only(top: 4),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.accentSoft,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              '$count item${count == 1 ? '' : 's'}',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+          // Sized here because the chip takes its height from the 40px
+          // filter row it was written for.
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: SizedBox(
+              height: 30,
+              child: _FilterChip(
+                label: _hasPriceOrStockFilter ? 'Filter · on' : 'Filter',
+                icon: Icons.tune_rounded,
+                active: _hasPriceOrStockFilter,
+                onTap: _openFilterSheet,
               ),
             ),
           ),
@@ -756,13 +741,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             active: _selectedSort != null,
             onTap: _openSortSheet,
           ),
-          const SizedBox(width: 8),
-          _FilterChip(
-            label: _hasPriceOrStockFilter ? 'Filter · on' : 'Filter',
-            icon: Icons.tune_rounded,
-            active: _hasPriceOrStockFilter,
-            onTap: _openFilterSheet,
-          ),
+          // Filter itself now lives beside the result count in the heading.
           if (_hasActiveFilters) ...[
             const SizedBox(width: 8),
             _FilterChip(

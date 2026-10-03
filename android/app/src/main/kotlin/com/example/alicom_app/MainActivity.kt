@@ -1,4 +1,4 @@
-package com.alicom.razinsoft
+package com.alicom
 
 import android.content.ContentValues
 import android.os.Build

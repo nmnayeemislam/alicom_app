@@ -63,6 +63,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '815807319026',
     projectId: 'alicom-new',
     storageBucket: 'alicom-new.firebasestorage.app',
-    iosBundleId: 'com.example.alicomApp',
+    iosBundleId: 'com.alicom',
   );
 }
